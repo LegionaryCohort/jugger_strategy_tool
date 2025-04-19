@@ -10,20 +10,20 @@
 /* ------------------------------------------------------------ */
 
 body {
-  font-family: sans-serif;
-  text-align: center;
+	font-family: sans-serif;
+	text-align: center;
 }
 
 .container {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-around;
-  align-items: center;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-around;
+	align-items: center;
 }
 
 .buttons {
-  display: flex;
-  justify-content: space-evenly;
+	display: flex;
+	justify-content: space-evenly;
 }
 
 h1,
@@ -32,21 +32,39 @@ h3,
 h4,
 h5,
 h6 {
-  text-align: center;
-  margin: 0 auto;
-  padding: 2rem;
+	text-align: center;
+	margin: 0 auto;
+	padding: 2rem;
 }
 
 p,
 button {
-  margin: var(--size-6);
+	margin: var(--size-6);
 }
 
-body > picture,
+body>picture,
 button {
-  display: block;
-  margin-left: auto;
-  margin-right: auto;
-  text-align: center;
-  margin: 2rem;
+	display: block;
+	margin-left: auto;
+	margin-right: auto;
+	text-align: center;
+	margin: 2rem;
+}
+
+#bevy-canvas {
+	position: relative;
+	padding-bottom: 56.25%;
+	overflow: hidden;
+	width: 100%;
+	height: auto;
+}
+
+#bevy-canvas iframe,
+#bevy-canvas object,
+#bevy-canvas embed {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
 }

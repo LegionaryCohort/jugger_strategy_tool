@@ -1,15 +1,17 @@
 [package]
 name = "jugger_strategy_tool"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 authors = ["Mario Treiber <mariotreiber@gmail.com>"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+bevy = { version = "0.15.3", features = ["serialize"] }
 leptos = { version = "0.7", features = ["csr"] }
 leptos_meta = { version = "0.7" }
 leptos_router = { version = "0.7" }
+leptos-bevy-canvas = "0.2.0"
 console_log = "1"
 log = "0.4"
 console_error_panic_hook = "0.1"
