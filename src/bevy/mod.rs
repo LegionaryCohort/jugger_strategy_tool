@@ -1,8 +1,11 @@
+pub mod field;
+pub mod unit;
+
 use crate::{RENDER_HEIGHT, RENDER_WIDTH};
-use bevy::ecs::system::ObserverSystem;
+use bevy::asset::AssetMetaCheck;
 use bevy::prelude::*;
 use bevy::window::WindowResolution;
-use bevy::{asset::AssetMetaCheck, ecs::system::IntoObserverSystem};
+use field::FieldPlugin;
 use leptos_bevy_canvas::prelude::{BevyQueryDuplex, LeptosBevyApp};
 
 pub fn init_bevy_app(selected_query_duplex: BevyQueryDuplex<(Selected,), ()>) -> App {
@@ -25,6 +28,7 @@ pub fn init_bevy_app(selected_query_duplex: BevyQueryDuplex<(Selected,), ()>) ->
             }),
         MeshPickingPlugin,
     ))
+	.add_plugins(FieldPlugin)
     .sync_leptos_signal_with_query(selected_query_duplex)
     .add_systems(Startup, (setup_scene,))
     // .add_systems(Update, (apply_color, selected_outline))
@@ -36,24 +40,24 @@ pub fn init_bevy_app(selected_query_duplex: BevyQueryDuplex<(Selected,), ()>) ->
 
 pub fn setup_scene(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn(Camera2d);
-    commands
-        .spawn((
-            Sprite::from_image(asset_server.load("test.png")),
-            Transform {
-                translation: Vec3::new(-100., 0., 0.),
-                ..default()
-            },
-        ))
-        .observe(select_on_click("Test".to_owned()));
-    commands
-        .spawn((
-            Sprite::from_image(asset_server.load("logo.png")),
-            Transform {
-                translation: Vec3::new(200., 0., 0.),
-                ..default()
-            },
-        ))
-        .observe(select_on_click("Logo".to_owned()));
+    // commands
+    //     .spawn((
+    //         Sprite::from_image(asset_server.load("test.png")),
+    //         Transform {
+    //             translation: Vec3::new(-250., 0., 0.),
+    //             ..default()
+    //         },
+    //     ))
+    //     .observe(select_on_click("Test".to_owned()));
+    // commands
+    //     .spawn((
+    //         Sprite::from_image(asset_server.load("logo.png")),
+    //         Transform {
+    //             translation: Vec3::new(250., 0., 0.),
+    //             ..default()
+    //         },
+    //     ))
+    //     .observe(select_on_click("Logo".to_owned()));
 }
 
 #[derive(Component, Clone, Debug)]

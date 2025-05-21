@@ -36,11 +36,14 @@ pub fn App() -> impl IntoView {
 
                 <h3>
                     Selected:
-                    {if let Some(name) = selected.read().as_ref() {
-                        name.0.0.clone()
-                    } else {
-                        "-nothing-".to_owned()
+                    {move || {
+                        if let Some(name) = selected.read().as_ref() {
+                            name.0.0.clone()
+                        } else {
+                            "-nothing-".to_owned()
+                        }
                     }}
+
                 </h3>
             </Frame>
         </div>
