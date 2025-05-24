@@ -9,7 +9,6 @@ authors = ["Mario Treiber <mariotreiber@gmail.com>"]
 [dependencies]
 bevy = { version = "0.15.3", features = ["serialize"] }
 bevy_prototype_lyon = "0.13"
-lyon_algorithms = "1.0.5"
 leptos = { version = "0.7", features = ["csr"] }
 leptos_meta = { version = "0.7" }
 leptos_router = { version = "0.7" }

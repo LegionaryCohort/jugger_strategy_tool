@@ -3088,7 +3088,6 @@ dependencies = [
  "leptos_meta",
  "leptos_router",
  "log",
- "lyon_algorithms",
  "wasm-bindgen",
  "wasm-bindgen-test",
  "web-sys",
