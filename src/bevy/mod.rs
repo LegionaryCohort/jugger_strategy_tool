@@ -4,6 +4,7 @@ pub mod unit;
 
 use crate::{RENDER_HEIGHT, RENDER_WIDTH};
 use bevy::{asset::AssetMetaCheck, prelude::*, window::WindowResolution};
+use bevy_prototype_lyon::prelude::ShapePlugin;
 use field::FieldPlugin;
 use input::{camera_input_map, InputPlugin};
 use leptos_bevy_canvas::prelude::{BevyQueryDuplex, LeptosBevyApp};
@@ -36,6 +37,7 @@ pub fn init_bevy() -> App {
             }),
         MeshPickingPlugin,
     ))
+    .add_plugins(ShapePlugin)
     .add_plugins(FieldPlugin)
     .add_plugins(UnitPlugin)
     .add_plugins(InputPlugin)
@@ -44,13 +46,14 @@ pub fn init_bevy() -> App {
     app
 }
 
-const DEFAULT_SCALE: f32 = 20.; // pixels per meter
+// TODO make this customizable (?)
+pub const DISPLAY_SCALE: f32 = 2.;
 
 fn setup(mut commands: Commands) {
     commands.spawn((
         Camera2d,
         OrthographicProjection {
-            scale: 1. / DEFAULT_SCALE,
+            scale: DISPLAY_SCALE,
             ..OrthographicProjection::default_2d()
         },
         camera_input_map(),

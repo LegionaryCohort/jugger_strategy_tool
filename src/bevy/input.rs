@@ -8,7 +8,7 @@ impl Plugin for InputPlugin {
             .init_resource::<ActionState<GlobalAction>>()
             .insert_resource(GlobalAction::input_map())
             .add_systems(Update, sys_exit_bevy)
-            .add_plugins(InputManagerPlugin::<Action>::default())
+            .add_plugins(InputManagerPlugin::<CameraAction>::default())
             .add_systems(Update, sys_zoom_camera);
     }
 }
@@ -30,24 +30,26 @@ fn sys_exit_bevy(action_state: Res<ActionState<GlobalAction>>, mut writer: Event
 }
 
 #[derive(Actionlike, Clone, Debug, Copy, PartialEq, Eq, Hash, Reflect)]
-pub enum Action {
+pub enum CameraAction {
     #[actionlike(Axis)]
     Zoom,
 }
 
-pub fn camera_input_map() -> InputManagerBundle<Action> {
-    InputManagerBundle::with_map(InputMap::default().with_axis(Action::Zoom, MouseScrollAxis::Y))
+pub fn camera_input_map() -> InputManagerBundle<CameraAction> {
+    InputManagerBundle::with_map(
+        InputMap::default().with_axis(CameraAction::Zoom, MouseScrollAxis::Y),
+    )
 }
 
 fn sys_zoom_camera(
-    query: Single<(&mut OrthographicProjection, &ActionState<Action>), With<Camera2d>>,
+    query: Single<(&mut OrthographicProjection, &ActionState<CameraAction>), With<Camera2d>>,
 ) {
     const CAMERA_ZOOM_RATE: f32 = 0.05;
 
     let (mut camera_projection, action_state) = query.into_inner();
     // Here, we use the `action_value` method to extract the total net amount that the mouse wheel has travelled
     // Up and right axis movements are always positive by default
-    let zoom_delta = action_state.value(&Action::Zoom);
+    let zoom_delta = action_state.value(&CameraAction::Zoom);
 
     // We want to zoom in when we use mouse wheel up,
     // so we increase the scale proportionally

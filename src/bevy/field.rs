@@ -4,8 +4,7 @@ use bevy_prototype_lyon::prelude::*;
 pub struct FieldPlugin;
 impl Plugin for FieldPlugin {
     fn build(&self, app: &mut bevy::app::App) {
-        app.add_plugins(ShapePlugin)
-            .add_systems(Startup, setup_field);
+        app.add_systems(Startup, setup_field);
     }
 }
 
