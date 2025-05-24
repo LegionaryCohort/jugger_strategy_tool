@@ -1,3 +1,4 @@
+use super::SIZE_SCALING_FACTOR;
 use bevy::{app::Plugin, color::palettes::css::*, ecs::system::Commands, prelude::*};
 use bevy_prototype_lyon::prelude::*;
 
@@ -62,6 +63,7 @@ fn setup_field(mut commands: Commands) {
     commands.spawn((
         ShapeBundle {
             path: field_shape,
+            transform: Transform::from_scale(Vec3::splat(SIZE_SCALING_FACTOR)),
             ..default()
         },
         Stroke::new(BLACK, 0.2),

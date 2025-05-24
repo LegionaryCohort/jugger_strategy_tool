@@ -1,7 +1,6 @@
+use super::SIZE_SCALING_FACTOR;
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
-
-use super::DISPLAY_SCALE;
 
 pub struct UnitPlugin;
 impl Plugin for UnitPlugin {
@@ -180,11 +179,10 @@ impl Team {
 
     fn color(&self) -> Color {
         // TODO make this customizable
-        Color::srgb(
-            if matches!(self, Team::Left) { 0.7 } else { 0. },
-            0.,
-            if matches!(self, Team::Right) { 0.7 } else { 0. },
-        )
+        match self {
+            Team::Left => Color::srgb(0.7, 0.3, 0.3),
+            Team::Right => Color::srgb(0.3, 0.3, 0.7),
+        }
     }
 }
 enum StartPosition {
@@ -273,8 +271,8 @@ fn sys_update_unit_locations(
     mut q_units: Query<(&UnitPosition, &mut Transform), Changed<UnitPosition>>,
 ) {
     for (position, mut transform) in q_units.iter_mut() {
-        transform.translation.x = position.x * DISPLAY_SCALE * 20.;
-        transform.translation.y = position.y * DISPLAY_SCALE * 20.;
+        transform.translation.x = position.x * SIZE_SCALING_FACTOR;
+        transform.translation.y = position.y * SIZE_SCALING_FACTOR;
     }
 }
 

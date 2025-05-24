@@ -46,14 +46,14 @@ pub fn init_bevy() -> App {
     app
 }
 
-// TODO make this customizable (?)
-pub const DISPLAY_SCALE: f32 = 2.;
+pub const DEFAULT_ZOOM: f32 = 4.5;
+pub const SIZE_SCALING_FACTOR: f32 = 100.; // pixels per meter
 
 fn setup(mut commands: Commands) {
     commands.spawn((
         Camera2d,
         OrthographicProjection {
-            scale: DISPLAY_SCALE,
+            scale: DEFAULT_ZOOM,
             ..OrthographicProjection::default_2d()
         },
         camera_input_map(),
