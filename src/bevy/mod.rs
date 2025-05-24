@@ -1,6 +1,6 @@
-mod camera;
-mod field;
-mod input;
+pub mod camera;
+pub mod field;
+pub mod input;
 pub mod unit;
 
 use crate::{RENDER_HEIGHT, RENDER_WIDTH};
@@ -21,7 +21,7 @@ pub fn init_bevy_for_leptos(selected_query_duplex: BevyQueryDuplex<(Selected,), 
 
 pub fn init_bevy() -> App {
     let mut app = App::new();
-    app.add_plugins((
+    app.add_plugins(
         DefaultPlugins
             .set(AssetPlugin {
                 meta_check: AssetMetaCheck::Never,
@@ -37,8 +37,8 @@ pub fn init_bevy() -> App {
                 }),
                 ..default()
             }),
-        MeshPickingPlugin,
-    ))
+    )
+    .add_plugins(MeshPickingPlugin)
     .add_plugins(CameraPlugin)
     .add_plugins(ShapePlugin)
     .add_plugins(FieldPlugin)

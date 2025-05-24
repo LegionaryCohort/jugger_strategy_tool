@@ -63,6 +63,7 @@ fn setup_field(mut commands: Commands) {
     commands.spawn((
         ShapeBundle {
             path: field_shape,
+            transform: Transform::from_xyz(0., 0., -1.),
             ..default()
         },
         Stroke::new(BLACK, 10.),

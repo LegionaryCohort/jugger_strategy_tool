@@ -1,12 +1,11 @@
-use super::SIZE_SCALING_FACTOR;
+use super::{camera::ZoomState, SIZE_SCALING_FACTOR};
 use bevy::prelude::*;
 use bevy_prototype_lyon::prelude::*;
 
 pub struct UnitPlugin;
 impl Plugin for UnitPlugin {
     fn build(&self, app: &mut bevy::app::App) {
-        app.add_systems(Startup, sys_spawn_default_units)
-            .add_systems(Update, sys_update_unit_locations);
+        app.add_systems(Startup, sys_spawn_default_units);
     }
 }
 
@@ -116,42 +115,39 @@ fn spawn_display_entity(
     commands: &mut Commands,
     r_asset_server: &Res<AssetServer>,
 ) {
+    let (color, position, sprite) = match &spawn_data {
+        SpawnData::Jugg => (
+            Jugg::color(),
+            Jugg::initial_position(),
+            Jugg.get_sprite(&r_asset_server),
+        ),
+        SpawnData::Unit(unit_type, team, start_position) => (
+            team.color(),
+            team.initial_position(start_position),
+            unit_type.get_sprite(&r_asset_server),
+        ),
+    };
     let background_bundle = ShapeBundle {
         path: GeometryBuilder::build_as(&shapes::Circle {
             radius: 45.,
             center: Vec2::ZERO,
         }),
-        transform: Transform::from_xyz(0., 0., 1.),
+        transform: Transform::from_translation(position.extend(0.)),
         ..default()
     };
+    let mut entity = commands.spawn((background_bundle, Fill::color(color)));
+    entity.with_child((
+        sprite,
+        Transform::from_xyz(0., 0., 1.),
+        PickingBehavior::IGNORE,
+    ));
+    entity.observe(on_unit_dragged);
     match spawn_data {
         SpawnData::Jugg => {
-            commands
-                .spawn((
-                    background_bundle,
-                    Fill::color(Jugg::color()),
-                    Jugg::initial_position(),
-                    Jugg,
-                ))
-                .with_child((
-                    Jugg.get_sprite(&r_asset_server),
-                    Transform::from_xyz(0., 0., 2.),
-                ));
+            entity.insert(Jugg);
         }
-        SpawnData::Unit(unit_type, team, start_position) => {
-            commands
-                .spawn((
-                    background_bundle,
-                    Fill::color(team.color()),
-                    team.initial_position(start_position),
-                    unit_type,
-                    team,
-                    UnitState::Active,
-                ))
-                .with_child((
-                    unit_type.get_sprite(&r_asset_server),
-                    Transform::from_xyz(0., 0., 2.),
-                ));
+        SpawnData::Unit(unit_type, team, _) => {
+            entity.insert((unit_type, team, UnitState::Active));
         }
     };
 }
@@ -162,18 +158,18 @@ enum Team {
     Right,
 }
 impl Team {
-    fn initial_position(&self, start_position: StartPosition) -> UnitPosition {
+    fn initial_position(&self, start_position: &StartPosition) -> Vec2 {
         match (self, start_position) {
-            (Team::Left, StartPosition::One) => UnitPosition { x: -21., y: 4. },
-            (Team::Left, StartPosition::Two) => UnitPosition { x: -21., y: 2. },
-            (Team::Left, StartPosition::Three) => UnitPosition { x: -21., y: -2. },
-            (Team::Left, StartPosition::Four) => UnitPosition { x: -21., y: -4. },
-            (Team::Left, StartPosition::Runner) => UnitPosition { x: -21., y: 0. },
-            (Team::Right, StartPosition::One) => UnitPosition { x: 21., y: -4. },
-            (Team::Right, StartPosition::Two) => UnitPosition { x: 21., y: -2. },
-            (Team::Right, StartPosition::Three) => UnitPosition { x: 21., y: 2. },
-            (Team::Right, StartPosition::Four) => UnitPosition { x: 21., y: 4. },
-            (Team::Right, StartPosition::Runner) => UnitPosition { x: 21., y: 0. },
+            (Team::Left, StartPosition::One) => from_meters(-21., 4.),
+            (Team::Left, StartPosition::Two) => from_meters(-21., 2.),
+            (Team::Left, StartPosition::Three) => from_meters(-21., -2.),
+            (Team::Left, StartPosition::Four) => from_meters(-21., -4.),
+            (Team::Left, StartPosition::Runner) => from_meters(-21., 0.),
+            (Team::Right, StartPosition::One) => from_meters(21., -4.),
+            (Team::Right, StartPosition::Two) => from_meters(21., -2.),
+            (Team::Right, StartPosition::Three) => from_meters(21., 2.),
+            (Team::Right, StartPosition::Four) => from_meters(21., 4.),
+            (Team::Right, StartPosition::Runner) => from_meters(21., 0.),
         }
     }
 
@@ -239,8 +235,8 @@ enum PlayerUnitType {
 #[derive(Component)]
 struct Jugg;
 impl Jugg {
-    fn initial_position() -> UnitPosition {
-        UnitPosition { x: 0., y: 0. }
+    fn initial_position() -> Vec2 {
+        Vec2::ZERO
     }
 
     fn color() -> Color {
@@ -260,36 +256,37 @@ enum UnitState {
     Pinned { downtime: u8 },
 }
 
-/// Location of a unit in meters from the centerpoint of the field
-#[derive(Component)]
-struct UnitPosition {
-    x: f32,
-    y: f32,
-}
-
-fn sys_update_unit_locations(
-    mut q_units: Query<(&UnitPosition, &mut Transform), Changed<UnitPosition>>,
-) {
-    for (position, mut transform) in q_units.iter_mut() {
-        transform.translation.x = position.x * SIZE_SCALING_FACTOR;
-        transform.translation.y = position.y * SIZE_SCALING_FACTOR;
-    }
+fn from_meters(x: f32, y: f32) -> Vec2 {
+    Vec2::new(x, y) * SIZE_SCALING_FACTOR
 }
 
 #[derive(Component, Clone, Debug)]
 pub struct Selected(pub String);
 
-// pub fn select_on_click(
-//     name: String,
-// ) -> impl FnMut(Trigger<Pointer<Click>>, Commands, Query<Entity, With<Selected>>) {
-//     move |click: Trigger<Pointer<Click>>,
-//           mut commands: Commands,
-//           prev_selected: Query<Entity, With<Selected>>| {
-//         if let Ok(entity) = prev_selected.get_single() {
-//             commands.entity(entity).remove::<Selected>();
-//         }
-//         commands
-//             .entity(click.entity())
-//             .insert(Selected(name.clone()));
-//     }
-// }
+pub fn select_on_click(
+    name: String,
+) -> impl FnMut(Trigger<Pointer<Click>>, Commands, Query<Entity, With<Selected>>) {
+    move |click: Trigger<Pointer<Click>>,
+          mut commands: Commands,
+          prev_selected: Query<Entity, With<Selected>>| {
+        if let Ok(entity) = prev_selected.get_single() {
+            commands.entity(entity).remove::<Selected>();
+        }
+        commands
+            .entity(click.entity())
+            .insert(Selected(name.clone()));
+    }
+}
+
+fn on_unit_dragged(
+    trigger: Trigger<Pointer<Drag>>,
+    mut q_position: Query<&mut Transform, Or<(With<Jugg>, With<UnitType>)>>,
+    r_zoom_state: Res<ZoomState>,
+) {
+    if let Ok(mut target_transform) = q_position.get_mut(trigger.target) {
+        let mut delta = trigger.delta;
+        delta.y *= -1.;
+        delta *= r_zoom_state.current_zoom;
+        target_transform.translation += delta.extend(0.);
+    }
+}

@@ -38,7 +38,7 @@ const MAX_ZOOM: f32 = 1.;
 
 #[derive(Resource)]
 pub struct ZoomState {
-    current_zoom: f32,
+    pub current_zoom: f32,
     zoom_rate: f32,
 }
 impl Default for ZoomState {
