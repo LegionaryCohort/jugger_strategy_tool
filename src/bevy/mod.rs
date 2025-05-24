@@ -1,11 +1,11 @@
 pub mod field;
+pub mod input;
 pub mod unit;
 
 use crate::{RENDER_HEIGHT, RENDER_WIDTH};
-use bevy::asset::AssetMetaCheck;
-use bevy::prelude::*;
-use bevy::window::WindowResolution;
+use bevy::{asset::AssetMetaCheck, prelude::*, window::WindowResolution};
 use field::FieldPlugin;
+use input::{camera_input_map, InputPlugin};
 use leptos_bevy_canvas::prelude::{BevyQueryDuplex, LeptosBevyApp};
 use unit::{Selected, UnitPlugin};
 
@@ -36,24 +36,23 @@ pub fn init_bevy() -> App {
             }),
         MeshPickingPlugin,
     ))
-	.add_plugins(FieldPlugin)
-	.add_plugins(UnitPlugin)
-    .add_systems(Startup, setup)
-    // .add_systems(Update, (apply_color, selected_outline))
-    // .add_systems(FixedUpdate, (apply_rotation,))
-	;
+    .add_plugins(FieldPlugin)
+    .add_plugins(UnitPlugin)
+    .add_plugins(InputPlugin)
+    .add_systems(Startup, setup);
 
     app
 }
 
 const DEFAULT_SCALE: f32 = 20.; // pixels per meter
 
-pub fn setup(mut commands: Commands) {
+fn setup(mut commands: Commands) {
     commands.spawn((
         Camera2d,
         OrthographicProjection {
             scale: 1. / DEFAULT_SCALE,
             ..OrthographicProjection::default_2d()
         },
+        camera_input_map(),
     ));
 }
