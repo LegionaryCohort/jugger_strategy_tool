@@ -1,5 +1,7 @@
-use crate::bevy::*;
-use crate::{RENDER_HEIGHT, RENDER_WIDTH};
+use crate::{
+    bevy::{unit::Selected, *},
+    RENDER_HEIGHT, RENDER_WIDTH,
+};
 use leptos::prelude::*;
 use leptos_bevy_canvas::prelude::*;
 

@@ -9,9 +9,6 @@ impl Plugin for FieldPlugin {
     }
 }
 
-const SIZE_SCALE: f32 = 20.; // pixels per meter
-const SCALING_VECTOR: Vec3 = Vec3::splat(SIZE_SCALE);
-
 fn setup_field(mut commands: Commands) {
     let field_corners = shapes::Polygon {
         points: [
@@ -66,15 +63,9 @@ fn setup_field(mut commands: Commands) {
     commands.spawn((
         ShapeBundle {
             path: field_shape,
-            transform: Transform {
-                scale: SCALING_VECTOR,
-                ..default()
-            },
             ..default()
         },
         Stroke::new(BLACK, 0.2),
         Fill::color(LIGHT_GREEN),
     ));
 }
-
-// TODO add zoom capabilities

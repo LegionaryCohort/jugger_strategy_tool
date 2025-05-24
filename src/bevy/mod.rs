@@ -7,6 +7,7 @@ use bevy::prelude::*;
 use bevy::window::WindowResolution;
 use field::FieldPlugin;
 use leptos_bevy_canvas::prelude::{BevyQueryDuplex, LeptosBevyApp};
+use unit::{Selected, UnitPlugin};
 
 pub fn init_bevy_for_leptos(selected_query_duplex: BevyQueryDuplex<(Selected,), ()>) -> App {
     let mut app = init_bevy();
@@ -36,7 +37,8 @@ pub fn init_bevy() -> App {
         MeshPickingPlugin,
     ))
 	.add_plugins(FieldPlugin)
-    .add_systems(Startup, (setup_scene,))
+	.add_plugins(UnitPlugin)
+    .add_systems(Startup, setup)
     // .add_systems(Update, (apply_color, selected_outline))
     // .add_systems(FixedUpdate, (apply_rotation,))
 	;
@@ -44,42 +46,14 @@ pub fn init_bevy() -> App {
     app
 }
 
-pub fn setup_scene(mut commands: Commands, asset_server: Res<AssetServer>) {
-    commands.spawn(Camera2d);
-    // commands
-    //     .spawn((
-    //         Sprite::from_image(asset_server.load("test.png")),
-    //         Transform {
-    //             translation: Vec3::new(-250., 0., 0.),
-    //             ..default()
-    //         },
-    //     ))
-    //     .observe(select_on_click("Test".to_owned()));
-    // commands
-    //     .spawn((
-    //         Sprite::from_image(asset_server.load("logo.png")),
-    //         Transform {
-    //             translation: Vec3::new(250., 0., 0.),
-    //             ..default()
-    //         },
-    //     ))
-    //     .observe(select_on_click("Logo".to_owned()));
-}
+const DEFAULT_SCALE: f32 = 20.; // pixels per meter
 
-#[derive(Component, Clone, Debug)]
-pub struct Selected(pub String);
-
-pub fn select_on_click(
-    name: String,
-) -> impl FnMut(Trigger<Pointer<Click>>, Commands, Query<Entity, With<Selected>>) {
-    move |click: Trigger<Pointer<Click>>,
-          mut commands: Commands,
-          prev_selected: Query<Entity, With<Selected>>| {
-        if let Ok(entity) = prev_selected.get_single() {
-            commands.entity(entity).remove::<Selected>();
-        }
-        commands
-            .entity(click.entity())
-            .insert(Selected(name.clone()));
-    }
+pub fn setup(mut commands: Commands) {
+    commands.spawn((
+        Camera2d,
+        OrthographicProjection {
+            scale: 1. / DEFAULT_SCALE,
+            ..OrthographicProjection::default_2d()
+        },
+    ));
 }
