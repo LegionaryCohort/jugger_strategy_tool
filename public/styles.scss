@@ -51,12 +51,26 @@ button {
 	margin: 2rem;
 }
 
+.frame {
+	border-style: solid;
+	border-width: 2;
+	border-radius: 20px;
+	padding: 5;
+
+	#bevy-frame {
+		border-color: red
+	}
+
+	#leptos-frame {
+		border-color: blue
+	}
+}
+
 #bevy-canvas {
 	position: relative;
-	padding-bottom: 56.25%;
 	overflow: hidden;
 	width: 100%;
-	height: auto;
+	height: 100%;
 }
 
 #bevy-canvas iframe,

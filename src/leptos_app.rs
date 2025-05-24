@@ -12,47 +12,46 @@ pub fn App() -> impl IntoView {
         leptos::logging::log!("changed: {:?}", selected.get());
     });
     view! {
-        <div class="flex gap-5 items-center p-5 mx-auto w-full max-w-[1400px]">
-            <Frame
-                class="border-red-500 flex-4 bg-red-500/5"
+        <Frame id="bevy-frame" max_dimensions=(RENDER_WIDTH + 20., RENDER_HEIGHT + 20.)>
+            <BevyCanvas
+                init=move || { init_bevy_for_leptos(selected_query_duplex) }
                 {..}
-                style=format!("max-width: calc(2.5rem + {RENDER_WIDTH}px);")
-            >
-                <h2 class="relative text-xl font-bold text-red-500 top-[-10px]">Bevy</h2>
-                <div
-                    class="overflow-hidden rounded-lg aspect-[8/5]"
-                    style:max-width=format!("{}px", RENDER_WIDTH)
-                    style:max-height=format!("{}px", RENDER_HEIGHT)
-                >
-                    <BevyCanvas
-                        init=move || { init_bevy_for_leptos(selected_query_duplex) }
-                        {..}
-                        width=RENDER_WIDTH
-                        height=RENDER_HEIGHT
-                    />
-                </div>
-            </Frame>
+                width=RENDER_WIDTH
+                height=RENDER_HEIGHT
+            />
+        </Frame>
 
-            <Frame class="flex-1 border-blue-500 bg-blue-500/5 max-w-[370px]">
-                <h2 class="relative text-xl font-bold text-blue-500 top-[-10px]">Leptos</h2>
+        <Frame id="leptos-frame">
+            <h3>
+                Selected:
+                {move || {
+                    if let Some(name) = selected.read().as_ref() {
+                        name.0.0.clone()
+                    } else {
+                        "-nothing-".to_owned()
+                    }
+                }}
 
-                <h3>
-                    Selected:
-                    {move || {
-                        if let Some(name) = selected.read().as_ref() {
-                            name.0.0.clone()
-                        } else {
-                            "-nothing-".to_owned()
-                        }
-                    }}
-
-                </h3>
-            </Frame>
-        </div>
+            </h3>
+        </Frame>
     }
 }
 
 #[component]
-pub fn Frame(class: &'static str, children: Children) -> impl IntoView {
-    view! { <div class=format!("border-2 border-solid {class} rounded-lg p-5")>{children()}</div> }
+pub fn Frame(
+    id: &'static str,
+    #[prop(optional)] max_dimensions: Option<(f32, f32)>,
+    children: Children,
+) -> impl IntoView {
+    let div_style = match max_dimensions {
+        Some((max_width, max_height)) => {
+            format!("max-width: {}px; max-height: {}px", max_width, max_height)
+        }
+        None => "".to_owned(),
+    };
+    view! {
+        <div id=id class="frame" style=div_style>
+            {children()}
+        </div>
+    }
 }
