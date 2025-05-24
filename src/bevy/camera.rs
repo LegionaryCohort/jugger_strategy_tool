@@ -51,6 +51,9 @@ impl Default for ZoomState {
 }
 impl ZoomState {
     fn zoom(&mut self, delta: f32) {
+        #[cfg(target_arch = "wasm32")]
+        let delta = delta / 120.;
+
         let mut new_zoom = self.current_zoom * (1. - delta * self.zoom_rate);
         if new_zoom > MIN_ZOOM {
             new_zoom = MIN_ZOOM;
