@@ -23,7 +23,7 @@ pub fn App() -> impl IntoView {
                     style:max-height=format!("{}px", RENDER_HEIGHT)
                 >
                     <BevyCanvas
-                        init=move || { init_bevy_app(selected_query_duplex) }
+                        init=move || { init_bevy_for_leptos(selected_query_duplex) }
                         {..}
                         width=RENDER_WIDTH
                         height=RENDER_HEIGHT

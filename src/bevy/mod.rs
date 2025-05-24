@@ -8,7 +8,14 @@ use bevy::window::WindowResolution;
 use field::FieldPlugin;
 use leptos_bevy_canvas::prelude::{BevyQueryDuplex, LeptosBevyApp};
 
-pub fn init_bevy_app(selected_query_duplex: BevyQueryDuplex<(Selected,), ()>) -> App {
+pub fn init_bevy_for_leptos(selected_query_duplex: BevyQueryDuplex<(Selected,), ()>) -> App {
+    let mut app = init_bevy();
+    app.sync_leptos_signal_with_query(selected_query_duplex);
+
+    app
+}
+
+pub fn init_bevy() -> App {
     let mut app = App::new();
     app.add_plugins((
         DefaultPlugins
@@ -29,7 +36,6 @@ pub fn init_bevy_app(selected_query_duplex: BevyQueryDuplex<(Selected,), ()>) ->
         MeshPickingPlugin,
     ))
 	.add_plugins(FieldPlugin)
-    .sync_leptos_signal_with_query(selected_query_duplex)
     .add_systems(Startup, (setup_scene,))
     // .add_systems(Update, (apply_color, selected_outline))
     // .add_systems(FixedUpdate, (apply_rotation,))
