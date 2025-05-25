@@ -10,7 +10,8 @@ impl Plugin for UnitPlugin {
             .add_systems(
                 Update,
                 sys_sync_selection_state.run_if(resource_changed::<UnitRegistry>),
-            );
+            )
+            .add_systems(Update, sys_update_unit_visuals);
     }
 }
 
@@ -297,22 +298,38 @@ pub struct Selected;
 
 fn sys_sync_selection_state(
     r_unit_registry: Res<UnitRegistry>,
-    mut q_unit: Query<(Entity, &mut Fill, &Unit)>,
+    q_unit: Query<Entity, With<Unit>>,
     mut commands: Commands,
 ) {
-    // Reset selection state on all units (to deselect any previously selected ones)
-    for (entity, mut fill, unit) in q_unit.iter_mut() {
-        fill.color = unit.color(false);
+    q_unit.iter().for_each(|entity| {
         commands.entity(entity).remove::<Selected>();
-        commands.entity(entity).remove::<Stroke>();
-    }
+    });
 
-    // Set selection on unit if applicable
     if let Some(selected_entity) = r_unit_registry.selected {
-        if let Ok((entity, mut fill, unit)) = q_unit.get_mut(selected_entity) {
-            fill.color = unit.color(true);
+        if let Ok(entity) = q_unit.get(selected_entity) {
             commands.entity(entity).insert(Selected);
+        } else {
+            error!("{selected_entity} is selected, but is not a unit entity.")
+        }
+    }
+}
 
+fn sys_update_unit_visuals(
+    mut q_unit: Query<(Entity, &mut Fill, &Unit)>,
+    q_selected: Query<Entity, With<Selected>>,
+    mut q_deselected: RemovedComponents<Selected>,
+    mut commands: Commands,
+) {
+    q_deselected.read().for_each(|entity| {
+        if let Ok((entity, mut fill, unit)) = q_unit.get_mut(entity) {
+            fill.color = unit.color(false);
+            commands.entity(entity).remove::<Stroke>();
+        }
+    });
+
+    q_selected.iter().for_each(|entity| {
+        if let Ok((entity, mut fill, unit)) = q_unit.get_mut(entity) {
+            fill.color = unit.color(true);
             let stroke_color = match unit {
                 Unit::Jugg => BLACK,
                 Unit::Player { .. } => WHITE,
@@ -320,8 +337,6 @@ fn sys_sync_selection_state(
             commands
                 .entity(entity)
                 .insert(Stroke::new(stroke_color, 5.));
-        } else {
-            error!("{selected_entity} is selected, but is not a unit entity.")
         }
-    }
+    });
 }
