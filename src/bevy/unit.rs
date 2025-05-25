@@ -1,20 +1,25 @@
 use super::{camera::ZoomState, SIZE_SCALING_FACTOR};
-use bevy::prelude::*;
+use bevy::{color::palettes::css::*, prelude::*};
 use bevy_prototype_lyon::prelude::*;
 
 pub struct UnitPlugin;
 impl Plugin for UnitPlugin {
     fn build(&self, app: &mut bevy::app::App) {
-        app.add_systems(Startup, sys_spawn_default_units);
+        app.init_resource::<UnitRegistry>()
+            .add_systems(Startup, sys_spawn_default_units)
+            .add_systems(
+                Update,
+                sys_sync_selection_state.run_if(resource_changed::<UnitRegistry>),
+            );
     }
 }
 
 fn sys_spawn_default_units(mut commands: Commands, r_asset_server: Res<AssetServer>) {
     // TODO move these default units to external startup config
-    spawn_display_entity(SpawnData::Jugg, &mut commands, &r_asset_server);
+    spawn_unit(SpawnData::Jugg, &mut commands, &r_asset_server);
 
-    spawn_display_entity(
-        SpawnData::Unit(
+    spawn_unit(
+        SpawnData::Player(
             UnitType::Runner { has_jugg: false },
             Team::Left,
             StartPosition::Runner,
@@ -22,8 +27,8 @@ fn sys_spawn_default_units(mut commands: Commands, r_asset_server: Res<AssetServ
         &mut commands,
         &r_asset_server,
     );
-    spawn_display_entity(
-        SpawnData::Unit(
+    spawn_unit(
+        SpawnData::Player(
             UnitType::Player(PlayerUnitType::Shield),
             Team::Left,
             StartPosition::One,
@@ -31,8 +36,8 @@ fn sys_spawn_default_units(mut commands: Commands, r_asset_server: Res<AssetServ
         &mut commands,
         &r_asset_server,
     );
-    spawn_display_entity(
-        SpawnData::Unit(
+    spawn_unit(
+        SpawnData::Player(
             UnitType::Player(PlayerUnitType::QTip),
             Team::Left,
             StartPosition::Two,
@@ -40,8 +45,8 @@ fn sys_spawn_default_units(mut commands: Commands, r_asset_server: Res<AssetServ
         &mut commands,
         &r_asset_server,
     );
-    spawn_display_entity(
-        SpawnData::Unit(
+    spawn_unit(
+        SpawnData::Player(
             UnitType::Player(PlayerUnitType::Chain),
             Team::Left,
             StartPosition::Three,
@@ -49,8 +54,8 @@ fn sys_spawn_default_units(mut commands: Commands, r_asset_server: Res<AssetServ
         &mut commands,
         &r_asset_server,
     );
-    spawn_display_entity(
-        SpawnData::Unit(
+    spawn_unit(
+        SpawnData::Player(
             UnitType::Player(PlayerUnitType::QTip),
             Team::Left,
             StartPosition::Four,
@@ -59,8 +64,8 @@ fn sys_spawn_default_units(mut commands: Commands, r_asset_server: Res<AssetServ
         &r_asset_server,
     );
 
-    spawn_display_entity(
-        SpawnData::Unit(
+    spawn_unit(
+        SpawnData::Player(
             UnitType::Runner { has_jugg: false },
             Team::Right,
             StartPosition::Runner,
@@ -68,8 +73,8 @@ fn sys_spawn_default_units(mut commands: Commands, r_asset_server: Res<AssetServ
         &mut commands,
         &r_asset_server,
     );
-    spawn_display_entity(
-        SpawnData::Unit(
+    spawn_unit(
+        SpawnData::Player(
             UnitType::Player(PlayerUnitType::DoubleShort),
             Team::Right,
             StartPosition::One,
@@ -77,8 +82,8 @@ fn sys_spawn_default_units(mut commands: Commands, r_asset_server: Res<AssetServ
         &mut commands,
         &r_asset_server,
     );
-    spawn_display_entity(
-        SpawnData::Unit(
+    spawn_unit(
+        SpawnData::Player(
             UnitType::Player(PlayerUnitType::Staff),
             Team::Right,
             StartPosition::Two,
@@ -86,8 +91,8 @@ fn sys_spawn_default_units(mut commands: Commands, r_asset_server: Res<AssetServ
         &mut commands,
         &r_asset_server,
     );
-    spawn_display_entity(
-        SpawnData::Unit(
+    spawn_unit(
+        SpawnData::Player(
             UnitType::Player(PlayerUnitType::Long),
             Team::Right,
             StartPosition::Three,
@@ -95,8 +100,8 @@ fn sys_spawn_default_units(mut commands: Commands, r_asset_server: Res<AssetServ
         &mut commands,
         &r_asset_server,
     );
-    spawn_display_entity(
-        SpawnData::Unit(
+    spawn_unit(
+        SpawnData::Player(
             UnitType::Player(PlayerUnitType::Chain),
             Team::Right,
             StartPosition::Four,
@@ -108,23 +113,18 @@ fn sys_spawn_default_units(mut commands: Commands, r_asset_server: Res<AssetServ
 
 enum SpawnData {
     Jugg,
-    Unit(UnitType, Team, StartPosition),
+    Player(UnitType, Team, StartPosition),
 }
-fn spawn_display_entity(
-    spawn_data: SpawnData,
-    commands: &mut Commands,
-    r_asset_server: &Res<AssetServer>,
-) {
-    let (color, position, sprite) = match &spawn_data {
-        SpawnData::Jugg => (
-            Jugg::color(),
-            Jugg::initial_position(),
-            Jugg.get_sprite(&r_asset_server),
-        ),
-        SpawnData::Unit(unit_type, team, start_position) => (
-            team.color(),
+fn spawn_unit(spawn_data: SpawnData, commands: &mut Commands, r_asset_server: &Res<AssetServer>) {
+    let (position, unit_component) = match spawn_data {
+        SpawnData::Jugg => (Jugg::initial_position(), Unit::Jugg),
+        SpawnData::Player(unit_type, team, start_position) => (
             team.initial_position(start_position),
-            unit_type.get_sprite(&r_asset_server),
+            Unit::Player {
+                team,
+                unit_type,
+                state: UnitState::Active,
+            },
         ),
     };
     let background_bundle = ShapeBundle {
@@ -135,30 +135,80 @@ fn spawn_display_entity(
         transform: Transform::from_translation(position.extend(0.)),
         ..default()
     };
-    let mut entity = commands.spawn((background_bundle, Fill::color(color)));
-    entity.with_child((
-        sprite,
-        Transform::from_xyz(0., 0., 1.),
-        PickingBehavior::IGNORE,
-    ));
-    entity.observe(on_unit_dragged);
-    match spawn_data {
-        SpawnData::Jugg => {
-            entity.insert(Jugg);
-        }
-        SpawnData::Unit(unit_type, team, _) => {
-            entity.insert((unit_type, team, UnitState::Active));
-        }
-    };
+    let sprite = unit_component.get_sprite(&r_asset_server);
+
+    commands
+        .spawn((
+            background_bundle,
+            Fill::color(unit_component.color(false)),
+            unit_component,
+        ))
+        .with_child((
+            sprite,
+            Transform::from_xyz(0., 0., 1.),
+            PickingBehavior::IGNORE,
+        ))
+        .observe(on_unit_grabbed)
+        .observe(on_unit_dragged);
 }
 
-#[derive(Component)]
-enum Team {
+fn from_meters(x: f32, y: f32) -> Vec2 {
+    Vec2::new(x, y) * SIZE_SCALING_FACTOR
+}
+
+#[derive(Component, Clone, Copy, Debug)]
+pub enum Unit {
+    Jugg,
+    Player {
+        team: Team,
+        unit_type: UnitType,
+        state: UnitState,
+    },
+}
+impl Unit {
+    fn color(&self, selected: bool) -> Color {
+        // TODO make this customizable
+        Color::from(match (self, selected) {
+            (Unit::Jugg, true) => WHITE_SMOKE,
+            (Unit::Jugg, false) => LIGHT_GRAY,
+            (Unit::Player { team, .. }, selected) => match (team, selected) {
+                (Team::Left, true) => RED,
+                (Team::Left, false) => DARK_RED,
+                (Team::Right, true) => LIGHT_BLUE,
+                (Team::Right, false) => BLUE,
+            },
+        })
+    }
+
+    fn get_sprite(&self, r_asset_server: &Res<AssetServer>) -> Sprite {
+        Sprite::from_image(r_asset_server.load(match self {
+            Unit::Jugg => "icons/jugg.png",
+            Unit::Player { unit_type, .. } => match unit_type {
+                UnitType::Positional(PositionalUnitType::One) => "icons/1.png",
+                UnitType::Positional(PositionalUnitType::Two) => "icons/2.png",
+                UnitType::Positional(PositionalUnitType::Three) => "icons/3.png",
+                UnitType::Positional(PositionalUnitType::Four) => "icons/4.png",
+                UnitType::Positional(PositionalUnitType::Five) => "icons/5.png",
+                UnitType::Runner { has_jugg: false } => "icons/runner.png",
+                UnitType::Runner { has_jugg: true } => "icons/runner_ball.png",
+                UnitType::Player(PlayerUnitType::Chain) => "icons/chain.png",
+                UnitType::Player(PlayerUnitType::Long) => "icons/long.png",
+                UnitType::Player(PlayerUnitType::Staff) => "icons/staff.png",
+                UnitType::Player(PlayerUnitType::QTip) => "icons/q_tip.png",
+                UnitType::Player(PlayerUnitType::Shield) => "icons/shield.png",
+                UnitType::Player(PlayerUnitType::DoubleShort) => "icons/double_short.png",
+            },
+        }))
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum Team {
     Left,
     Right,
 }
 impl Team {
-    fn initial_position(&self, start_position: &StartPosition) -> Vec2 {
+    fn initial_position(&self, start_position: StartPosition) -> Vec2 {
         match (self, start_position) {
             (Team::Left, StartPosition::One) => from_meters(-21., 4.),
             (Team::Left, StartPosition::Two) => from_meters(-21., 2.),
@@ -172,14 +222,6 @@ impl Team {
             (Team::Right, StartPosition::Runner) => from_meters(21., 0.),
         }
     }
-
-    fn color(&self) -> Color {
-        // TODO make this customizable
-        match self {
-            Team::Left => Color::srgb(0.7, 0.3, 0.3),
-            Team::Right => Color::srgb(0.3, 0.3, 0.7),
-        }
-    }
 }
 enum StartPosition {
     One,
@@ -189,41 +231,22 @@ enum StartPosition {
     Runner,
 }
 
-#[derive(Component, Clone, Copy)]
-enum UnitType {
+#[derive(Clone, Copy, Debug)]
+pub enum UnitType {
     Positional(PositionalUnitType),
     Runner { has_jugg: bool },
     Player(PlayerUnitType),
 }
-impl UnitType {
-    fn get_sprite(&self, r_asset_server: &Res<AssetServer>) -> Sprite {
-        Sprite::from_image(r_asset_server.load(match self {
-            UnitType::Positional(PositionalUnitType::One) => "icons/1.png",
-            UnitType::Positional(PositionalUnitType::Two) => "icons/2.png",
-            UnitType::Positional(PositionalUnitType::Three) => "icons/3.png",
-            UnitType::Positional(PositionalUnitType::Four) => "icons/4.png",
-            UnitType::Positional(PositionalUnitType::Five) => "icons/5.png",
-            UnitType::Runner { has_jugg: false } => "icons/runner.png",
-            UnitType::Runner { has_jugg: true } => "icons/runner_ball.png",
-            UnitType::Player(PlayerUnitType::Chain) => "icons/chain.png",
-            UnitType::Player(PlayerUnitType::Long) => "icons/long.png",
-            UnitType::Player(PlayerUnitType::Staff) => "icons/staff.png",
-            UnitType::Player(PlayerUnitType::QTip) => "icons/q_tip.png",
-            UnitType::Player(PlayerUnitType::Shield) => "icons/shield.png",
-            UnitType::Player(PlayerUnitType::DoubleShort) => "icons/double_short.png",
-        }))
-    }
-}
-#[derive(Clone, Copy)]
-enum PositionalUnitType {
+#[derive(Clone, Copy, Debug)]
+pub enum PositionalUnitType {
     One,
     Two,
     Three,
     Four,
     Five,
 }
-#[derive(Clone, Copy)]
-enum PlayerUnitType {
+#[derive(Clone, Copy, Debug)]
+pub enum PlayerUnitType {
     Chain,
     Long,
     Staff,
@@ -232,55 +255,33 @@ enum PlayerUnitType {
     DoubleShort,
 }
 
-#[derive(Component)]
-struct Jugg;
+#[derive(Component, Clone, Copy)]
+pub struct Jugg;
 impl Jugg {
     fn initial_position() -> Vec2 {
         Vec2::ZERO
     }
-
-    fn color() -> Color {
-        // TODO make this customizable
-        Color::srgb(0.8, 0.8, 0.8)
-    }
-
-    fn get_sprite(&self, r_asset_server: &Res<AssetServer>) -> Sprite {
-        Sprite::from_image(r_asset_server.load("icons/jugg.png"))
-    }
 }
 
-#[derive(Component)]
+#[derive(Component, Clone, Copy, Debug)]
 enum UnitState {
     Active,
     Inactive { downtime: u8, pin_stone: bool },
     Pinned { downtime: u8 },
 }
 
-fn from_meters(x: f32, y: f32) -> Vec2 {
-    Vec2::new(x, y) * SIZE_SCALING_FACTOR
+#[derive(Resource, Default)]
+pub struct UnitRegistry {
+    selected: Option<Entity>,
 }
 
-#[derive(Component, Clone, Debug)]
-pub struct Selected(pub String);
-
-pub fn select_on_click(
-    name: String,
-) -> impl FnMut(Trigger<Pointer<Click>>, Commands, Query<Entity, With<Selected>>) {
-    move |click: Trigger<Pointer<Click>>,
-          mut commands: Commands,
-          prev_selected: Query<Entity, With<Selected>>| {
-        if let Ok(entity) = prev_selected.get_single() {
-            commands.entity(entity).remove::<Selected>();
-        }
-        commands
-            .entity(click.entity())
-            .insert(Selected(name.clone()));
-    }
+fn on_unit_grabbed(trigger: Trigger<Pointer<Down>>, mut r_unit_registry: ResMut<UnitRegistry>) {
+    r_unit_registry.selected = Some(trigger.target);
 }
 
 fn on_unit_dragged(
     trigger: Trigger<Pointer<Drag>>,
-    mut q_position: Query<&mut Transform, Or<(With<Jugg>, With<UnitType>)>>,
+    mut q_position: Query<&mut Transform, With<Unit>>,
     r_zoom_state: Res<ZoomState>,
 ) {
     if let Ok(mut target_transform) = q_position.get_mut(trigger.target) {
@@ -288,5 +289,39 @@ fn on_unit_dragged(
         delta.y *= -1.;
         delta *= r_zoom_state.current_zoom;
         target_transform.translation += delta.extend(0.);
+    }
+}
+
+#[derive(Component, Clone, Debug)]
+pub struct Selected;
+
+fn sys_sync_selection_state(
+    r_unit_registry: Res<UnitRegistry>,
+    mut q_unit: Query<(Entity, &mut Fill, &Unit)>,
+    mut commands: Commands,
+) {
+    // Reset selection state on all units (to deselect any previously selected ones)
+    for (entity, mut fill, unit) in q_unit.iter_mut() {
+        fill.color = unit.color(false);
+        commands.entity(entity).remove::<Selected>();
+        commands.entity(entity).remove::<Stroke>();
+    }
+
+    // Set selection on unit if applicable
+    if let Some(selected_entity) = r_unit_registry.selected {
+        if let Ok((entity, mut fill, unit)) = q_unit.get_mut(selected_entity) {
+            fill.color = unit.color(true);
+            commands.entity(entity).insert(Selected);
+
+            let stroke_color = match unit {
+                Unit::Jugg => BLACK,
+                Unit::Player { .. } => WHITE,
+            };
+            commands
+                .entity(entity)
+                .insert(Stroke::new(stroke_color, 5.));
+        } else {
+            error!("{selected_entity} is selected, but is not a unit entity.")
+        }
     }
 }

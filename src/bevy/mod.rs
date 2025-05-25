@@ -10,11 +10,15 @@ use camera::CameraPlugin;
 use field::FieldPlugin;
 use input::InputPlugin;
 use leptos_bevy_canvas::prelude::{BevyQueryDuplex, LeptosBevyApp};
-use unit::{Selected, UnitPlugin};
+use unit::{Selected, Unit, UnitPlugin};
 
-pub fn init_bevy_for_leptos(selected_query_duplex: BevyQueryDuplex<(Selected,), ()>) -> App {
+pub struct QueryDuplexes {
+    pub selected_unit_qd: BevyQueryDuplex<(Unit,), With<Selected>>,
+}
+
+pub fn init_bevy_for_leptos(query_duplexes: QueryDuplexes) -> App {
     let mut app = init_bevy();
-    app.sync_leptos_signal_with_query(selected_query_duplex);
+    app.sync_leptos_signal_with_query(query_duplexes.selected_unit_qd);
 
     app
 }
