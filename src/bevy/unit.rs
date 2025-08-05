@@ -136,7 +136,7 @@ fn spawn_unit(spawn_data: SpawnData, commands: &mut Commands, r_asset_server: &R
         transform: Transform::from_translation(position.extend(0.)),
         ..default()
     };
-    let sprite = unit_component.get_sprite(&r_asset_server);
+    let sprite = unit_component.get_sprite(r_asset_server);
 
     commands
         .spawn((
@@ -288,7 +288,7 @@ fn on_unit_dragged(
     if let Ok(mut target_transform) = q_position.get_mut(trigger.target) {
         let mut delta = trigger.delta;
         delta.y *= -1.;
-        delta *= r_zoom_state.current_zoom;
+        delta *= r_zoom_state.current_zoom_factor;
         target_transform.translation += delta.extend(0.);
     }
 }
