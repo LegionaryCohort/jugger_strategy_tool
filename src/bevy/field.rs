@@ -1,4 +1,4 @@
-use crate::bevy::{from_meters, radius_from_meters};
+use crate::bevy::{from_meters, radius_from_meters, Z_LEVEL_FIELD_BACKGROUND};
 use bevy::{app::Plugin, color::palettes::css::*, ecs::system::Commands, prelude::*};
 use bevy_prototype_lyon::prelude::*;
 
@@ -63,7 +63,7 @@ fn setup_field(mut commands: Commands) {
     commands.spawn((
         ShapeBundle {
             path: field_shape,
-            transform: Transform::from_xyz(0., 0., -1.),
+            transform: Transform::from_xyz(0., 0., Z_LEVEL_FIELD_BACKGROUND),
             ..default()
         },
         Stroke::new(BLACK, 10.),

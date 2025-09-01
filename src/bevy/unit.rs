@@ -1,4 +1,4 @@
-use crate::bevy::{camera::ZoomState, from_meters};
+use crate::bevy::{camera::ZoomState, from_meters, Z_LEVEL_UNITS, Z_LEVEL_UNIT_SPRITES};
 use bevy::{color::palettes::css::*, prelude::*};
 use bevy_prototype_lyon::prelude::*;
 
@@ -141,12 +141,13 @@ fn spawn_unit(spawn_data: SpawnData, commands: &mut Commands, r_asset_server: &R
     commands
         .spawn((
             background_bundle,
+            Transform::from_xyz(0., 0., Z_LEVEL_UNITS),
             Fill::color(unit_component.color(false)),
             unit_component,
         ))
         .with_child((
             sprite,
-            Transform::from_xyz(0., 0., 1.),
+            Transform::from_xyz(0., 0., Z_LEVEL_UNIT_SPRITES),
             PickingBehavior::IGNORE,
         ))
         .observe(on_unit_grabbed)
