@@ -1,4 +1,4 @@
-use super::{camera::ZoomState, SIZE_SCALING_FACTOR};
+use crate::bevy::{camera::ZoomState, from_meters};
 use bevy::{color::palettes::css::*, prelude::*};
 use bevy_prototype_lyon::prelude::*;
 
@@ -151,10 +151,6 @@ fn spawn_unit(spawn_data: SpawnData, commands: &mut Commands, r_asset_server: &R
         ))
         .observe(on_unit_grabbed)
         .observe(on_unit_dragged);
-}
-
-fn from_meters(x: f32, y: f32) -> Vec2 {
-    Vec2::new(x, y) * SIZE_SCALING_FACTOR
 }
 
 #[derive(Component, Clone, Copy, Debug)]

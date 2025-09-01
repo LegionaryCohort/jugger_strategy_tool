@@ -1,4 +1,4 @@
-use super::SIZE_SCALING_FACTOR;
+use crate::bevy::{from_meters, radius_from_meters};
 use bevy::{app::Plugin, color::palettes::css::*, ecs::system::Commands, prelude::*};
 use bevy_prototype_lyon::prelude::*;
 
@@ -12,14 +12,14 @@ impl Plugin for FieldPlugin {
 fn setup_field(mut commands: Commands) {
     let field_corners = shapes::Polygon {
         points: [
-            scaled_point(-15., -10.),
-            scaled_point(-20., -5.),
-            scaled_point(-20., 5.),
-            scaled_point(-15., 10.),
-            scaled_point(15., 10.),
-            scaled_point(20., 5.),
-            scaled_point(20., -5.),
-            scaled_point(15., -10.),
+            from_meters(-15., -10.),
+            from_meters(-20., -5.),
+            from_meters(-20., 5.),
+            from_meters(-15., 10.),
+            from_meters(15., 10.),
+            from_meters(20., 5.),
+            from_meters(20., -5.),
+            from_meters(15., -10.),
         ]
         .into_iter()
         .collect(),
@@ -29,27 +29,27 @@ fn setup_field(mut commands: Commands) {
 
     let mut center_line_builder = PathBuilder::new();
     for marker in (-10..=-2).step_by(2) {
-        center_line_builder.move_to(scaled_point(0., marker as f32));
-        center_line_builder.line_to(scaled_point(0., (marker + 1) as f32));
+        center_line_builder.move_to(from_meters(0., marker as f32));
+        center_line_builder.line_to(from_meters(0., (marker + 1) as f32));
     }
     for marker in (1..=9).step_by(2) {
-        center_line_builder.move_to(scaled_point(0., marker as f32));
-        center_line_builder.line_to(scaled_point(0., (marker + 1) as f32));
+        center_line_builder.move_to(from_meters(0., marker as f32));
+        center_line_builder.line_to(from_meters(0., (marker + 1) as f32));
     }
     let center_line = center_line_builder.build();
 
     let center_point = GeometryBuilder::build_as(&shapes::Circle {
-        radius: scaled_radius(0.1),
+        radius: radius_from_meters(0.1),
         center: Vec2::ZERO,
     });
 
     let left_base = GeometryBuilder::build_as(&shapes::Circle {
-        radius: scaled_radius(0.2),
-        center: scaled_point(-18., 0.),
+        radius: radius_from_meters(0.2),
+        center: from_meters(-18., 0.),
     });
     let right_base = GeometryBuilder::build_as(&shapes::Circle {
-        radius: scaled_radius(0.2),
-        center: scaled_point(18., 0.),
+        radius: radius_from_meters(0.2),
+        center: from_meters(18., 0.),
     });
 
     let field_shape = GeometryBuilder::new()
@@ -69,12 +69,4 @@ fn setup_field(mut commands: Commands) {
         Stroke::new(BLACK, 10.),
         Fill::color(LIGHT_GREEN),
     ));
-}
-
-fn scaled_point(x: f32, y: f32) -> Vec2 {
-    Vec2::new(x * SIZE_SCALING_FACTOR, y * SIZE_SCALING_FACTOR)
-}
-
-fn scaled_radius(radius: f32) -> f32 {
-    radius * SIZE_SCALING_FACTOR
 }

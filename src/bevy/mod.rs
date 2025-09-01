@@ -53,3 +53,9 @@ pub fn init_bevy() -> App {
 }
 
 pub const SIZE_SCALING_FACTOR: f32 = 100.; // pixels per meter
+pub fn from_meters(x: f32, y: f32) -> Vec2 {
+    Vec2::new(x, y) * SIZE_SCALING_FACTOR
+}
+pub fn radius_from_meters(radius: f32) -> f32 {
+    radius * SIZE_SCALING_FACTOR
+}
