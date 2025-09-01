@@ -133,7 +133,7 @@ fn spawn_unit(spawn_data: SpawnData, commands: &mut Commands, r_asset_server: &R
             radius: 45.,
             center: Vec2::ZERO,
         }),
-        transform: Transform::from_translation(position.extend(0.)),
+        transform: Transform::from_translation(position.extend(Z_LEVEL_UNITS)),
         ..default()
     };
     let sprite = unit_component.get_sprite(&r_asset_server);
@@ -141,7 +141,6 @@ fn spawn_unit(spawn_data: SpawnData, commands: &mut Commands, r_asset_server: &R
     commands
         .spawn((
             background_bundle,
-            Transform::from_xyz(0., 0., Z_LEVEL_UNITS),
             Fill::color(unit_component.color(false)),
             unit_component,
         ))

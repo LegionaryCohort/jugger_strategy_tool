@@ -48,7 +48,7 @@ pub fn init_bevy() -> App {
     .add_plugins(CameraPlugin)
     .add_plugins(ShapePlugin)
     .add_plugins(FieldPlugin)
-    // .add_plugins(UnitPlugin)
+    .add_plugins(UnitPlugin)
     .add_plugins(InputPlugin);
 
     app
