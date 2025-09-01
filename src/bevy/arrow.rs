@@ -37,7 +37,15 @@ fn sys_spawn_test_arrows(mut commands: Commands) {
     );
 }
 
-fn spawn_arrow(arrow: Arrow, commands: &mut Commands) {
+pub fn spawn_arrow(arrow: Arrow, commands: &mut Commands) {
+    // TODO this needs a rewrite:
+    // the arrow should always start at a local 0,0 to ensure that the starting point of the arrow is
+    // also the location of the arrow
+    // this requires everything to be recentered on 'from' before making calculations
+    // also the arrow geometry should be built in the same scale as the units
+    // to ensure that scaling, zoom, etc. have a consistent effect
+    // -> check what this is for units, are they based on the meter distances from the center?
+
     let arrow_head_result = match arrow {
         Arrow::Straight { from, to } => calculate_arrowhead(from, to),
         Arrow::Bezier {
@@ -86,7 +94,7 @@ fn spawn_arrow(arrow: Arrow, commands: &mut Commands) {
     //     .observe(on_unit_dragged);
 }
 
-enum Arrow {
+pub enum Arrow {
     Straight {
         from: Vec2,
         to: Vec2,

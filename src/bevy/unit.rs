@@ -1,4 +1,10 @@
-use crate::bevy::{camera::ZoomState, from_meters, Z_LEVEL_UNITS, Z_LEVEL_UNIT_SPRITES};
+use crate::bevy::{
+    arrow::{spawn_arrow, Arrow},
+    camera::ZoomState,
+    from_meters,
+    input::InputMode,
+    Z_LEVEL_UNITS, Z_LEVEL_UNIT_SPRITES,
+};
 use bevy::{color::palettes::css::*, prelude::*};
 use bevy_prototype_lyon::prelude::*;
 
@@ -11,7 +17,11 @@ impl Plugin for UnitPlugin {
                 Update,
                 sys_sync_selection_state.run_if(resource_changed::<UnitRegistry>),
             )
-            .add_systems(Update, sys_update_unit_visuals);
+            .add_systems(Update, sys_update_unit_visuals)
+            .add_systems(
+                Update,
+                sys_on_input_mode_change.run_if(state_changed::<InputMode>),
+            );
     }
 }
 
@@ -149,8 +159,9 @@ fn spawn_unit(spawn_data: SpawnData, commands: &mut Commands, r_asset_server: &R
             Transform::from_xyz(0., 0., Z_LEVEL_UNIT_SPRITES),
             PickingBehavior::IGNORE,
         ))
-        .observe(on_unit_grabbed)
-        .observe(on_unit_dragged);
+        // .observe(on_unit_grabbed)
+        // .observe(on_unit_dragged__move)
+		;
 }
 
 #[derive(Component, Clone, Copy, Debug)]
@@ -272,23 +283,6 @@ pub struct UnitRegistry {
     selected: Option<Entity>,
 }
 
-fn on_unit_grabbed(trigger: Trigger<Pointer<Down>>, mut r_unit_registry: ResMut<UnitRegistry>) {
-    r_unit_registry.selected = Some(trigger.target);
-}
-
-fn on_unit_dragged(
-    trigger: Trigger<Pointer<Drag>>,
-    mut q_position: Query<&mut Transform, With<Unit>>,
-    r_zoom_state: Res<ZoomState>,
-) {
-    if let Ok(mut target_transform) = q_position.get_mut(trigger.target) {
-        let mut delta = trigger.delta;
-        delta.y *= -1.;
-        delta *= r_zoom_state.current_zoom;
-        target_transform.translation += delta.extend(0.);
-    }
-}
-
 #[derive(Component, Clone, Debug)]
 pub struct Selected;
 
@@ -335,4 +329,72 @@ fn sys_update_unit_visuals(
                 .insert(Stroke::new(stroke_color, 5.));
         }
     });
+}
+
+fn sys_on_input_mode_change(
+    current_input_mode: Res<State<InputMode>>,
+    q_units: Query<Entity, With<Unit>>,
+    mut commands: Commands,
+) {
+    // TODO move this to input to have all variations in one place
+
+    println!("Input mode changed: {:?}", current_input_mode);
+
+    let input_observers = match **current_input_mode {
+        InputMode::View => None,
+        InputMode::Position => Some(vec![
+            Observer::new(on_unit_grabbed_do_select),
+            Observer::new(on_unit_dragged_do_move),
+        ]),
+        InputMode::Movement => Some(vec![
+            Observer::new(on_unit_grabbed_do_select),
+            Observer::new(on_unit_dragged_do_draw_arrow),
+        ]),
+    };
+    if let Some(observers) = input_observers {
+        observers.into_iter().for_each(|mut observer| {
+            q_units.iter().for_each(|unit| observer.watch_entity(unit));
+            commands.spawn((observer, StateScoped(**current_input_mode)));
+        });
+    }
+}
+
+fn on_unit_grabbed_do_select(
+    trigger: Trigger<Pointer<Down>>,
+    mut r_unit_registry: ResMut<UnitRegistry>,
+) {
+    r_unit_registry.selected = Some(trigger.target);
+}
+
+fn on_unit_dragged_do_move(
+    trigger: Trigger<Pointer<Drag>>,
+    mut q_position: Query<&mut Transform, With<Unit>>,
+    r_zoom_state: Res<ZoomState>,
+) {
+    if let Ok(mut target_transform) = q_position.get_mut(trigger.target) {
+        let mut delta = trigger.delta;
+        delta.y *= -1.;
+        delta *= r_zoom_state.current_zoom;
+        target_transform.translation += delta.extend(0.);
+    }
+}
+
+fn on_unit_dragged_do_draw_arrow(
+    trigger: Trigger<Pointer<DragEnd>>,
+    q_position: Query<&Transform, With<Unit>>,
+    mut commands: Commands,
+) {
+    if let Ok(unit) = q_position.get(trigger.target) {
+        let unit_position = unit.translation.xy();
+        println!("Distance dragged: {}", trigger.distance);
+        println!("Unit position   : {}", unit_position);
+        println!("Pointer location: {}", trigger.pointer_location.position);
+        spawn_arrow(
+            Arrow::Straight {
+                from: unit_position,
+                to: unit_position + trigger.distance,
+            },
+            &mut commands,
+        );
+    }
 }
