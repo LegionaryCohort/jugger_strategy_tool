@@ -1,5 +1,5 @@
 use crate::bevy::{from_meters, SIZE_SCALING_FACTOR, Z_LEVEL_ARROWS};
-use bevy::{app::Plugin, color::palettes::css::*, ecs::system::Commands, math, prelude::*};
+use bevy::{app::Plugin, color::palettes::css::*, ecs::system::Commands, prelude::*};
 use bevy_prototype_lyon::prelude::*;
 use core::f32;
 
@@ -115,7 +115,7 @@ struct Arrowhead {
 const ROTATE_PLUS_45: Vec2 = Vec2::new(f32::consts::FRAC_1_SQRT_2, f32::consts::FRAC_1_SQRT_2);
 const ROTATE_MINUS_45: Vec2 = Vec2::new(f32::consts::FRAC_1_SQRT_2, -f32::consts::FRAC_1_SQRT_2);
 fn calculate_arrowhead(from: Vec2, to: Vec2) -> Option<Arrowhead> {
-    return (from - to).try_normalize().map(|direction| {
+    (from - to).try_normalize().map(|direction| {
         let right = to + ROTATE_PLUS_45.rotate(direction) * SIZE_SCALING_FACTOR * 0.5;
         let left = to + ROTATE_MINUS_45.rotate(direction) * SIZE_SCALING_FACTOR * 0.5;
         Arrowhead {
@@ -123,5 +123,5 @@ fn calculate_arrowhead(from: Vec2, to: Vec2) -> Option<Arrowhead> {
             left,
             point: to,
         }
-    });
+    })
 }

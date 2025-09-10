@@ -158,10 +158,7 @@ fn spawn_unit(spawn_data: SpawnData, commands: &mut Commands, r_asset_server: &R
             sprite,
             Transform::from_xyz(0., 0., Z_LEVEL_UNIT_SPRITES),
             PickingBehavior::IGNORE,
-        ))
-        // .observe(on_unit_grabbed)
-        // .observe(on_unit_dragged__move)
-		;
+        ));
 }
 
 #[derive(Component, Clone, Copy, Debug)]
