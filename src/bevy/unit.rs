@@ -1,4 +1,10 @@
-use super::{camera::ZoomState, SIZE_SCALING_FACTOR};
+use crate::bevy::{
+    arrow::{spawn_arrow, Arrow},
+    camera::ZoomState,
+    from_meters,
+    input::InputMode,
+    Z_LEVEL_UNITS, Z_LEVEL_UNIT_SPRITES,
+};
 use bevy::{color::palettes::css::*, prelude::*};
 use bevy_prototype_lyon::prelude::*;
 
@@ -11,7 +17,11 @@ impl Plugin for UnitPlugin {
                 Update,
                 sys_sync_selection_state.run_if(resource_changed::<UnitRegistry>),
             )
-            .add_systems(Update, sys_update_unit_visuals);
+            .add_systems(Update, sys_update_unit_visuals)
+            .add_systems(
+                Update,
+                sys_on_input_mode_change.run_if(state_changed::<InputMode>),
+            );
     }
 }
 
@@ -133,7 +143,7 @@ fn spawn_unit(spawn_data: SpawnData, commands: &mut Commands, r_asset_server: &R
             radius: 45.,
             center: Vec2::ZERO,
         }),
-        transform: Transform::from_translation(position.extend(0.)),
+        transform: Transform::from_translation(position.extend(Z_LEVEL_UNITS)),
         ..default()
     };
     let sprite = unit_component.get_sprite(r_asset_server);
@@ -146,15 +156,12 @@ fn spawn_unit(spawn_data: SpawnData, commands: &mut Commands, r_asset_server: &R
         ))
         .with_child((
             sprite,
-            Transform::from_xyz(0., 0., 1.),
+            Transform::from_xyz(0., 0., Z_LEVEL_UNIT_SPRITES),
             PickingBehavior::IGNORE,
         ))
-        .observe(on_unit_grabbed)
-        .observe(on_unit_dragged);
-}
-
-fn from_meters(x: f32, y: f32) -> Vec2 {
-    Vec2::new(x, y) * SIZE_SCALING_FACTOR
+        // .observe(on_unit_grabbed)
+        // .observe(on_unit_dragged__move)
+		;
 }
 
 #[derive(Component, Clone, Copy, Debug)]
@@ -276,23 +283,6 @@ pub struct UnitRegistry {
     selected: Option<Entity>,
 }
 
-fn on_unit_grabbed(trigger: Trigger<Pointer<Down>>, mut r_unit_registry: ResMut<UnitRegistry>) {
-    r_unit_registry.selected = Some(trigger.target);
-}
-
-fn on_unit_dragged(
-    trigger: Trigger<Pointer<Drag>>,
-    mut q_position: Query<&mut Transform, With<Unit>>,
-    r_zoom_state: Res<ZoomState>,
-) {
-    if let Ok(mut target_transform) = q_position.get_mut(trigger.target) {
-        let mut delta = trigger.delta;
-        delta.y *= -1.;
-        delta *= r_zoom_state.current_zoom_factor;
-        target_transform.translation += delta.extend(0.);
-    }
-}
-
 #[derive(Component, Clone, Debug)]
 pub struct Selected;
 
@@ -339,4 +329,72 @@ fn sys_update_unit_visuals(
                 .insert(Stroke::new(stroke_color, 5.));
         }
     });
+}
+
+fn sys_on_input_mode_change(
+    current_input_mode: Res<State<InputMode>>,
+    q_units: Query<Entity, With<Unit>>,
+    mut commands: Commands,
+) {
+    // TODO move this to input to have all variations in one place
+
+    println!("Input mode changed: {:?}", current_input_mode);
+
+    let input_observers = match **current_input_mode {
+        InputMode::View => None,
+        InputMode::Position => Some(vec![
+            Observer::new(on_unit_grabbed_do_select),
+            Observer::new(on_unit_dragged_do_move),
+        ]),
+        InputMode::Movement => Some(vec![
+            Observer::new(on_unit_grabbed_do_select),
+            Observer::new(on_unit_dragged_do_draw_arrow),
+        ]),
+    };
+    if let Some(observers) = input_observers {
+        observers.into_iter().for_each(|mut observer| {
+            q_units.iter().for_each(|unit| observer.watch_entity(unit));
+            commands.spawn((observer, StateScoped(**current_input_mode)));
+        });
+    }
+}
+
+fn on_unit_grabbed_do_select(
+    trigger: Trigger<Pointer<Down>>,
+    mut r_unit_registry: ResMut<UnitRegistry>,
+) {
+    r_unit_registry.selected = Some(trigger.target);
+}
+
+fn on_unit_dragged_do_move(
+    trigger: Trigger<Pointer<Drag>>,
+    mut q_position: Query<&mut Transform, With<Unit>>,
+    r_zoom_state: Res<ZoomState>,
+) {
+    if let Ok(mut target_transform) = q_position.get_mut(trigger.target) {
+        let mut delta = trigger.delta;
+        delta.y *= -1.;
+        delta *= r_zoom_state.current_zoom_factor;
+        target_transform.translation += delta.extend(0.);
+    }
+}
+
+fn on_unit_dragged_do_draw_arrow(
+    trigger: Trigger<Pointer<DragEnd>>,
+    q_position: Query<&Transform, With<Unit>>,
+    mut commands: Commands,
+) {
+    if let Ok(unit) = q_position.get(trigger.target) {
+        let unit_position = unit.translation.xy();
+        println!("Distance dragged: {}", trigger.distance);
+        println!("Unit position   : {}", unit_position);
+        println!("Pointer location: {}", trigger.pointer_location.position);
+        spawn_arrow(
+            Arrow::Straight {
+                from: unit_position,
+                to: unit_position + trigger.distance,
+            },
+            &mut commands,
+        );
+    }
 }

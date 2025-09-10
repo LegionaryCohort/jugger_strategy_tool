@@ -1,9 +1,10 @@
+pub mod arrow;
 pub mod camera;
 pub mod field;
 pub mod input;
 pub mod unit;
 
-use crate::{RENDER_HEIGHT, RENDER_WIDTH};
+use crate::{bevy::arrow::ArrowPlugin, RENDER_HEIGHT, RENDER_WIDTH};
 use bevy::{asset::AssetMetaCheck, prelude::*, window::WindowResolution};
 use bevy_prototype_lyon::prelude::ShapePlugin;
 use camera::CameraPlugin;
@@ -43,6 +44,7 @@ pub fn init_bevy() -> App {
             }),
     )
     .add_plugins(MeshPickingPlugin)
+    .add_plugins(ArrowPlugin)
     .add_plugins(CameraPlugin)
     .add_plugins(ShapePlugin)
     .add_plugins(FieldPlugin)
@@ -52,4 +54,21 @@ pub fn init_bevy() -> App {
     app
 }
 
+// ------------------------------
+// coordinate scaling stuff
+// ------------------------------
 pub const SIZE_SCALING_FACTOR: f32 = 100.; // pixels per meter
+pub fn from_meters(x: f32, y: f32) -> Vec2 {
+    Vec2::new(x, y) * SIZE_SCALING_FACTOR
+}
+pub fn radius_from_meters(radius: f32) -> f32 {
+    radius * SIZE_SCALING_FACTOR
+}
+
+// ------------------------------
+// z-level stuff
+// ------------------------------
+const Z_LEVEL_FIELD_BACKGROUND: f32 = -2.;
+const Z_LEVEL_ARROWS: f32 = -1.;
+const Z_LEVEL_UNITS: f32 = 0.;
+const Z_LEVEL_UNIT_SPRITES: f32 = 1.;
