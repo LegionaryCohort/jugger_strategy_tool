@@ -379,17 +379,18 @@ fn on_unit_dragged_do_move(
 fn on_unit_dragged_do_draw_arrow(
     trigger: Trigger<Pointer<DragEnd>>,
     q_position: Query<&Transform, With<Unit>>,
+    r_zoom_state: Res<ZoomState>,
     mut commands: Commands,
 ) {
     if let Ok(unit) = q_position.get(trigger.target) {
         let unit_position = unit.translation.xy();
-        println!("Distance dragged: {}", trigger.distance);
-        println!("Unit position   : {}", unit_position);
-        println!("Pointer location: {}", trigger.pointer_location.position);
+        let mut drag_distance = trigger.distance;
+        drag_distance.y *= -1.;
+        drag_distance *= r_zoom_state.current_zoom_factor;
         spawn_arrow(
             Arrow::Straight {
                 from: unit_position,
-                to: unit_position + trigger.distance,
+                to: unit_position + drag_distance,
             },
             &mut commands,
         );
