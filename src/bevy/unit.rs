@@ -1,5 +1,5 @@
 use crate::bevy::{
-    arrow::{spawn_arrow, Arrow},
+    arrow::{spawn_arrow, ArrowOld},
     camera::ZoomState,
     from_meters,
     input::InputMode,
@@ -388,7 +388,7 @@ fn on_unit_dragged_do_draw_arrow(
         drag_distance.y *= -1.;
         drag_distance *= r_zoom_state.current_zoom_factor;
         spawn_arrow(
-            Arrow::Straight {
+            ArrowOld::Straight {
                 from: unit_position,
                 to: unit_position + drag_distance,
             },

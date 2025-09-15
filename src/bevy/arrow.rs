@@ -1,4 +1,6 @@
-use crate::bevy::{from_meters, SIZE_SCALING_FACTOR, Z_LEVEL_ARROWS};
+use crate::bevy::{
+    from_meters, unit::Unit, SIZE_SCALING_FACTOR, Z_LEVEL_ARROWS, Z_LEVEL_ARROW_CONTROL_POINTS,
+};
 use bevy::{app::Plugin, color::palettes::css::*, ecs::system::Commands, prelude::*};
 use bevy_prototype_lyon::prelude::*;
 use core::f32;
@@ -7,20 +9,21 @@ pub struct ArrowPlugin;
 impl Plugin for ArrowPlugin {
     fn build(&self, app: &mut bevy::app::App) {
         app.add_systems(Startup, sys_spawn_test_arrows)
+            .add_systems(Update, sys_update_control_point_visuals)
             .add_systems(Update, sys_update_arrow_visuals);
     }
 }
 
 fn sys_spawn_test_arrows(mut commands: Commands) {
     spawn_arrow(
-        Arrow::Straight {
+        ArrowOld::Straight {
             from: from_meters(5., 5.),
             to: from_meters(7., 7.),
         },
         &mut commands,
     );
     spawn_arrow(
-        Arrow::Bezier {
+        ArrowOld::Bezier {
             from: from_meters(-5., -5.),
             to: from_meters(-7., -7.),
             control_from: from_meters(-7., -5.),
@@ -31,7 +34,7 @@ fn sys_spawn_test_arrows(mut commands: Commands) {
 }
 
 fn sys_update_arrow_visuals(
-    mut q_arrows: Query<(&Arrow, &mut Path, &mut Transform), Changed<Arrow>>,
+    mut q_arrows: Query<(&ArrowOld, &mut Path, &mut Transform), Changed<ArrowOld>>,
 ) {
     for (arrow, mut path, mut transform) in q_arrows.iter_mut() {
         *path = calc_arrow_path(arrow);
@@ -39,14 +42,12 @@ fn sys_update_arrow_visuals(
     }
 }
 
-pub fn spawn_arrow(arrow: Arrow, commands: &mut Commands) {
+pub fn spawn_arrow(arrow: ArrowOld, commands: &mut Commands) {
     commands.spawn((arrow, ShapeBundle::default(), Stroke::new(BLACK, 10.)));
 }
 
 #[derive(Component, Clone, Copy, Debug)]
-pub enum Arrow {
-    // TODO from and to should take a Vec2 or a Unit
-    // add new type LocalizedArrow to handle this change for calculations
+pub enum ArrowOld {
     Straight {
         from: Vec2,
         to: Vec2,
@@ -58,19 +59,19 @@ pub enum Arrow {
         control_to: Vec2,
     },
 }
-impl Arrow {
-    fn localized(&self) -> Arrow {
+impl ArrowOld {
+    fn localized(&self) -> ArrowOld {
         match self {
-            Arrow::Straight { from, to } => Arrow::Straight {
+            ArrowOld::Straight { from, to } => ArrowOld::Straight {
                 from: Vec2::ZERO,
                 to: to - from,
             },
-            Arrow::Bezier {
+            ArrowOld::Bezier {
                 from,
                 to,
                 control_from,
                 control_to,
-            } => Arrow::Bezier {
+            } => ArrowOld::Bezier {
                 from: Vec2::ZERO,
                 to: to - from,
                 control_from: control_from - from,
@@ -81,8 +82,8 @@ impl Arrow {
 
     fn get_transform(&self) -> Transform {
         let from = match self {
-            Arrow::Straight { from, to: _ } => from,
-            Arrow::Bezier {
+            ArrowOld::Straight { from, to: _ } => from,
+            ArrowOld::Bezier {
                 from,
                 to: _,
                 control_from: _,
@@ -101,10 +102,10 @@ struct Arrowhead {
 }
 const ROTATE_PLUS_45: Vec2 = Vec2::new(f32::consts::FRAC_1_SQRT_2, f32::consts::FRAC_1_SQRT_2);
 const ROTATE_MINUS_45: Vec2 = Vec2::new(f32::consts::FRAC_1_SQRT_2, -f32::consts::FRAC_1_SQRT_2);
-fn calc_arrowhead(arrow: &Arrow) -> Option<Arrowhead> {
+fn calc_arrowhead(arrow: &ArrowOld) -> Option<Arrowhead> {
     let (from, to) = match arrow {
-        Arrow::Straight { from, to } => (*from, *to),
-        Arrow::Bezier {
+        ArrowOld::Straight { from, to } => (*from, *to),
+        ArrowOld::Bezier {
             from: _,
             to,
             control_from: _,
@@ -123,15 +124,15 @@ fn calc_arrowhead(arrow: &Arrow) -> Option<Arrowhead> {
     })
 }
 
-fn calc_arrow_path(arrow: &Arrow) -> Path {
+fn calc_arrow_path(arrow: &ArrowOld) -> Path {
     let arrow = arrow.localized();
     let mut arrow_builder = PathBuilder::new();
     match arrow {
-        Arrow::Straight { from, to } => {
+        ArrowOld::Straight { from, to } => {
             arrow_builder.move_to(from);
             arrow_builder.line_to(to);
         }
-        Arrow::Bezier {
+        ArrowOld::Bezier {
             from,
             to,
             control_from,
@@ -150,4 +151,51 @@ fn calc_arrow_path(arrow: &Arrow) -> Path {
     let arrow_path = arrow_builder.build();
 
     GeometryBuilder::new().add(&arrow_path).build()
+}
+
+#[derive(Component, Clone, Copy, Debug)]
+enum ControlPoint {
+    Attachable(ControlPointLocation),
+    Floating(Vec2),
+}
+
+#[derive(Clone, Copy, Debug)]
+enum ControlPointLocation {
+    Fixed(Vec2),
+    Attached(Entity),
+}
+
+enum Arrow {
+    Straight {
+        from: Entity, // attachable control point
+        to: Entity,   // attachable control point
+    },
+    Bezier {
+        from: Entity,         // attachable control point
+        to: Entity,           // attachable control point
+        control_from: Entity, // floating control point
+        control_to: Entity,   // floating control point
+    },
+}
+
+fn sys_update_control_point_visuals(
+    mut q_control_points: Query<(&ControlPoint, &mut Transform), Changed<ControlPoint>>,
+    q_units: Query<&Transform, With<Unit>>,
+) {
+    for (control_point, mut cp_transform) in q_control_points.iter_mut() {
+        let cp_location = match control_point {
+            ControlPoint::Attachable(ControlPointLocation::Attached(parent_unit)) => {
+                if let Ok(unit_transform) = q_units.get(*parent_unit) {
+                    unit_transform.translation.xy()
+                } else {
+                    error_once!("Could not find target entity for attached control point.");
+                    Vec2::ZERO
+                }
+            }
+            ControlPoint::Attachable(ControlPointLocation::Fixed(location))
+            | ControlPoint::Floating(location) => *location,
+        };
+
+        cp_transform.translation = cp_location.extend(Z_LEVEL_ARROW_CONTROL_POINTS);
+    }
 }
