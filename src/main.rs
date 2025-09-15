@@ -1,3 +1,4 @@
+#[allow(clippy::type_complexity)]
 mod bevy;
 mod leptos_app;
 

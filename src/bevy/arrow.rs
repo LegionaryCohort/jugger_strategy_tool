@@ -16,18 +16,18 @@ impl Plugin for ArrowPlugin {
 
 fn sys_spawn_test_arrows(mut commands: Commands) {
     spawn_arrow(
-        ArrowOld::Straight {
-            from: from_meters(5., 5.),
-            to: from_meters(7., 7.),
+        ArrowSpawnData::Straight {
+            from: AttachableControlPoint::from_meters(5., 5.),
+            to: AttachableControlPoint::from_meters(7., 7.),
         },
         &mut commands,
     );
     spawn_arrow(
-        ArrowOld::Bezier {
-            from: from_meters(-5., -5.),
-            to: from_meters(-7., -7.),
-            control_from: from_meters(-7., -5.),
-            control_to: from_meters(-5., -7.),
+        ArrowSpawnData::Bezier {
+            from: AttachableControlPoint::from_meters(-5., -5.),
+            to: AttachableControlPoint::from_meters(-7., -7.),
+            control_from: FloatingControlPoint::from_meters(-7., -5.),
+            control_to: FloatingControlPoint::from_meters(-5., -7.),
         },
         &mut commands,
     );
@@ -42,7 +42,7 @@ fn sys_update_arrow_visuals(
     }
 }
 
-pub fn spawn_arrow(arrow: ArrowOld, commands: &mut Commands) {
+pub fn spawn_arrow_old(arrow: ArrowOld, commands: &mut Commands) {
     commands.spawn((arrow, ShapeBundle::default(), Stroke::new(BLACK, 10.)));
 }
 
@@ -161,10 +161,11 @@ enum ControlPoint {
 
 #[derive(Clone, Copy, Debug)]
 enum ControlPointLocation {
-    Fixed(Vec2),
+    Floating(Vec2),
     Attached(Entity),
 }
 
+#[derive(Component, Clone, Copy, Debug)]
 enum Arrow {
     Straight {
         from: Entity, // attachable control point
@@ -179,23 +180,131 @@ enum Arrow {
 }
 
 fn sys_update_control_point_visuals(
-    mut q_control_points: Query<(&ControlPoint, &mut Transform), Changed<ControlPoint>>,
+    mut q_control_points: Query<
+        (&ControlPoint, &mut Transform, &mut Visibility),
+        (Changed<ControlPoint>, Without<Unit>),
+    >,
     q_units: Query<&Transform, With<Unit>>,
 ) {
-    for (control_point, mut cp_transform) in q_control_points.iter_mut() {
-        let cp_location = match control_point {
+    for (control_point, mut cp_transform, mut cp_visibility) in q_control_points.iter_mut() {
+        let (cp_location, cp_visible) = match control_point {
             ControlPoint::Attachable(ControlPointLocation::Attached(parent_unit)) => {
-                if let Ok(unit_transform) = q_units.get(*parent_unit) {
+                let location = if let Ok(unit_transform) = q_units.get(*parent_unit) {
                     unit_transform.translation.xy()
                 } else {
                     error_once!("Could not find target entity for attached control point.");
                     Vec2::ZERO
-                }
+                };
+
+                (location, false)
             }
-            ControlPoint::Attachable(ControlPointLocation::Fixed(location))
-            | ControlPoint::Floating(location) => *location,
+            ControlPoint::Attachable(ControlPointLocation::Floating(location))
+            | ControlPoint::Floating(location) => (*location, true),
         };
 
         cp_transform.translation = cp_location.extend(Z_LEVEL_ARROW_CONTROL_POINTS);
+        cp_visibility.set_if_neq(if cp_visible {
+            Visibility::Inherited
+        } else {
+            Visibility::Hidden
+        });
     }
+}
+
+trait ControlPointSpawnData {
+    fn to_component(&self) -> ControlPoint;
+}
+
+#[derive(Clone, Copy, Debug)]
+struct AttachableControlPoint {
+    location: ControlPointLocation,
+}
+impl AttachableControlPoint {
+    fn from_meters(x: f32, y: f32) -> Self {
+        Self {
+            location: ControlPointLocation::Floating(from_meters(x, y)),
+        }
+    }
+}
+impl ControlPointSpawnData for AttachableControlPoint {
+    fn to_component(&self) -> ControlPoint {
+        ControlPoint::Attachable(self.location)
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+struct FloatingControlPoint {
+    location: Vec2,
+}
+impl FloatingControlPoint {
+    fn from_meters(x: f32, y: f32) -> Self {
+        Self {
+            location: from_meters(x, y),
+        }
+    }
+}
+impl ControlPointSpawnData for FloatingControlPoint {
+    fn to_component(&self) -> ControlPoint {
+        ControlPoint::Floating(self.location)
+    }
+}
+
+fn spawn_control_point<C: ControlPointSpawnData>(spawn_data: C, commands: &mut Commands) -> Entity {
+    commands
+        .spawn((
+            spawn_data.to_component(),
+            ShapeBundle {
+                path: GeometryBuilder::build_as(&shapes::Circle {
+                    radius: 20.,
+                    center: Vec2::ZERO,
+                }),
+                ..default()
+            },
+        ))
+        .id()
+}
+
+enum ArrowSpawnData {
+    Straight {
+        from: AttachableControlPoint,
+        to: AttachableControlPoint,
+    },
+    Bezier {
+        from: AttachableControlPoint,
+        to: AttachableControlPoint,
+        control_from: FloatingControlPoint,
+        control_to: FloatingControlPoint,
+    },
+}
+pub fn spawn_arrow(spawn_data: ArrowSpawnData, commands: &mut Commands) {
+    let arrow_component = match spawn_data {
+        ArrowSpawnData::Straight { from, to } => {
+            let from = spawn_control_point(from, commands);
+            let to = spawn_control_point(to, commands);
+            Arrow::Straight { from, to }
+        }
+        ArrowSpawnData::Bezier {
+            from,
+            to,
+            control_from,
+            control_to,
+        } => {
+            let from = spawn_control_point(from, commands);
+            let to = spawn_control_point(to, commands);
+            let control_from = spawn_control_point(control_from, commands);
+            let control_to = spawn_control_point(control_to, commands);
+            Arrow::Bezier {
+                from,
+                to,
+                control_from,
+                control_to,
+            }
+        }
+    };
+
+    commands.spawn((
+        arrow_component,
+        ShapeBundle::default(),
+        Stroke::new(BLACK, 10.),
+    ));
 }
