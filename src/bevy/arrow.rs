@@ -10,7 +10,7 @@ impl Plugin for ArrowPlugin {
     fn build(&self, app: &mut bevy::app::App) {
         app.add_systems(Startup, sys_spawn_test_arrows).add_systems(
             Update,
-            (sys_update_control_point_visuals, sys_update_arrow_visuals).chain(),
+            (sys_update_control_points, sys_update_arrows).chain(),
         );
     }
 }
@@ -34,18 +34,14 @@ fn sys_spawn_test_arrows(mut commands: Commands) {
     );
 }
 
-fn sys_update_arrow_visuals(
-    mut q_arrows: Query<
-        (&Arrow, &mut Path, &mut Transform),
-        (Changed<Arrow>, Without<ControlPoint>),
-    >,
+fn sys_update_arrows(
+    mut q_arrows: Query<(&Arrow, &mut Path, &mut Transform), Without<ControlPoint>>,
     q_control_points: Query<&Transform, With<ControlPoint>>,
 ) {
     for (arrow, mut path, mut transform) in q_arrows.iter_mut() {
         if let Some(arrow_resolved) = arrow.resolve(&q_control_points) {
             *path = calc_arrow_path(&arrow_resolved);
             *transform = arrow_resolved.get_transform();
-            info!("{:?}", arrow_resolved);
         } else {
             error!("Arrow control points failed to resolve")
         }
@@ -113,11 +109,8 @@ impl Arrow {
     }
 }
 
-fn sys_update_control_point_visuals(
-    mut q_control_points: Query<
-        (&ControlPoint, &mut Transform, &mut Visibility),
-        (Changed<ControlPoint>, Without<Unit>),
-    >,
+fn sys_update_control_points(
+    mut q_control_points: Query<(&ControlPoint, &mut Transform, &mut Visibility), Without<Unit>>,
     q_units: Query<&Transform, With<Unit>>,
 ) {
     for (control_point, mut cp_transform, mut cp_visibility) in q_control_points.iter_mut() {
