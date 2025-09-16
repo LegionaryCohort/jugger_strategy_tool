@@ -1,5 +1,5 @@
 use crate::bevy::{
-    arrow::{spawn_arrow_old, ArrowOld},
+    arrow::{spawn_arrow, ArrowSpawnData, AttachableControlPoint, ControlPointLocation},
     camera::ZoomState,
     from_meters,
     input::InputMode,
@@ -378,19 +378,21 @@ fn on_unit_dragged_do_move(
 
 fn on_unit_dragged_do_draw_arrow(
     trigger: Trigger<Pointer<DragEnd>>,
-    q_position: Query<&Transform, With<Unit>>,
+    q_position: Query<(Entity, &Transform), With<Unit>>,
     r_zoom_state: Res<ZoomState>,
     mut commands: Commands,
 ) {
-    if let Ok(unit) = q_position.get(trigger.target) {
+    if let Ok((id, unit)) = q_position.get(trigger.target) {
         let unit_position = unit.translation.xy();
         let mut drag_distance = trigger.distance;
         drag_distance.y *= -1.;
         drag_distance *= r_zoom_state.current_zoom_factor;
-        spawn_arrow_old(
-            ArrowOld::Straight {
-                from: unit_position,
-                to: unit_position + drag_distance,
+        spawn_arrow(
+            ArrowSpawnData::Straight {
+                from: AttachableControlPoint::from_entity(id),
+                to: AttachableControlPoint {
+                    location: ControlPointLocation::Floating(unit_position + drag_distance),
+                },
             },
             &mut commands,
         );
