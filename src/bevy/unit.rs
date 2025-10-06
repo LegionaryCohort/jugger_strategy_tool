@@ -1,9 +1,9 @@
 use crate::bevy::{
-    arrow::{spawn_arrow, ArrowSpawnData, AttachableControlPoint, ControlPointLocation},
+    arrow::{spawn_arrow, ArrowSpawnData, AttachableControlPoint, ControlPointTarget},
     camera::ZoomState,
     from_meters,
     input::InputMode,
-    Z_LEVEL_UNITS, Z_LEVEL_UNIT_SPRITES,
+    UNIT_SIZE, Z_LEVEL_UNITS, Z_LEVEL_UNIT_SPRITES,
 };
 use bevy::{color::palettes::css::*, prelude::*};
 use bevy_prototype_lyon::prelude::*;
@@ -144,7 +144,7 @@ fn spawn_unit(spawn_data: SpawnData, commands: &mut Commands, r_asset_server: &R
     };
     let background_bundle = ShapeBundle {
         path: GeometryBuilder::build_as(&shapes::Circle {
-            radius: 45.,
+            radius: UNIT_SIZE,
             center: Vec2::ZERO,
         }),
         transform: Transform::from_translation(position.extend(Z_LEVEL_UNITS)),
@@ -377,6 +377,7 @@ fn on_unit_dragged_do_move(
     }
 }
 
+// TODO have this as 2 observers and just add one of the event readers to that directly to see what happened
 fn sys_handle_unit_drag_events(
     mut er_drag_end_events: EventReader<Pointer<DragEnd>>,
     mut er_drag_drop_events: EventReader<Pointer<DragDrop>>,
@@ -429,7 +430,7 @@ fn sys_handle_unit_drag_events(
                 ArrowSpawnData::Straight {
                     from: AttachableControlPoint::from_entity(source),
                     to: AttachableControlPoint {
-                        location: ControlPointLocation::Floating(unit_position + distance),
+                        location: ControlPointTarget::Floating(unit_position + distance),
                     },
                 },
                 &mut commands,

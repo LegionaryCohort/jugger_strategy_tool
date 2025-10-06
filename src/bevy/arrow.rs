@@ -1,5 +1,6 @@
 use crate::bevy::{
-    from_meters, unit::Unit, SIZE_SCALING_FACTOR, Z_LEVEL_ARROWS, Z_LEVEL_ARROW_CONTROL_POINTS,
+    from_meters, unit::Unit, CONTROL_POINT_SIZE, SIZE_SCALING_FACTOR, UNIT_SIZE, Z_LEVEL_ARROWS,
+    Z_LEVEL_ARROW_CONTROL_POINTS,
 };
 use bevy::{app::Plugin, color::palettes::css::*, ecs::system::Commands, prelude::*};
 use bevy_prototype_lyon::prelude::*;
@@ -36,7 +37,7 @@ fn sys_spawn_test_arrows(mut commands: Commands) {
 
 fn sys_update_arrows(
     mut q_arrows: Query<(&Arrow, &mut Path, &mut Transform), Without<ControlPoint>>,
-    q_control_points: Query<&Transform, With<ControlPoint>>,
+    q_control_points: Query<(&Transform, &ControlPoint)>,
 ) {
     for (arrow, mut path, mut transform) in q_arrows.iter_mut() {
         if let Some(arrow_resolved) = arrow.resolve(&q_control_points) {
@@ -50,24 +51,45 @@ fn sys_update_arrows(
 
 #[derive(Component, Clone, Copy, Debug)]
 enum ControlPoint {
-    Attachable(ControlPointLocation),
+    Attachable(ControlPointTarget),
     Floating(Vec2),
+}
+impl ControlPoint {
+    fn resolve_size(&self) -> f32 {
+        match self {
+            ControlPoint::Attachable(target) => target.resolve_size(),
+            ControlPoint::Floating(_) => CONTROL_POINT_SIZE,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
-pub enum ControlPointLocation {
+pub enum ControlPointTarget {
     Floating(Vec2),
     Attached(Entity),
+}
+impl ControlPointTarget {
+    fn resolve_size(&self) -> f32 {
+        match self {
+            ControlPointTarget::Floating(_) => CONTROL_POINT_SIZE,
+            ControlPointTarget::Attached(_) => UNIT_SIZE,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
 struct ControlPointRef(Entity);
 impl ControlPointRef {
-    fn resolve(&self, q_control_points: &Query<&Transform, With<ControlPoint>>) -> Option<Vec2> {
+    fn resolve(
+        &self,
+        q_control_points: &Query<(&Transform, &ControlPoint)>,
+    ) -> Option<(Vec2, f32)> {
         q_control_points
             .get(self.0)
             .ok()
-            .map(|transform| transform.translation.xy())
+            .map(|(transform, control_point)| {
+                (transform.translation.xy(), control_point.resolve_size())
+            })
     }
 }
 
@@ -87,24 +109,38 @@ enum Arrow {
 impl Arrow {
     fn resolve(
         &self,
-        q_control_points: &Query<&Transform, With<ControlPoint>>,
+        q_control_points: &Query<(&Transform, &ControlPoint)>,
     ) -> Option<ArrowResolved> {
         match self {
-            Arrow::Straight { from, to } => Some(ArrowResolved::Straight {
-                from: from.resolve(q_control_points)?,
-                to: to.resolve(q_control_points)?,
-            }),
+            Arrow::Straight { from, to } => {
+                let (from_point, from_radius) = from.resolve(q_control_points)?;
+                let (to_point, to_radius) = to.resolve(q_control_points)?;
+                let direction = (to_point - from_point).normalize();
+                let from = from_point + direction * from_radius;
+                let to = to_point - direction * to_radius;
+
+                Some(ArrowResolved::Straight { from, to })
+            }
             Arrow::Bezier {
                 from,
                 to,
                 control_from,
                 control_to,
-            } => Some(ArrowResolved::Bezier {
-                from: from.resolve(q_control_points)?,
-                to: to.resolve(q_control_points)?,
-                control_from: control_from.resolve(q_control_points)?,
-                control_to: control_to.resolve(q_control_points)?,
-            }),
+            } => {
+                let control_from = control_from.resolve(q_control_points)?.0;
+                let control_to = control_to.resolve(q_control_points)?.0;
+                let (from_point, from_radius) = from.resolve(q_control_points)?;
+                let (to_point, to_radius) = to.resolve(q_control_points)?;
+                let from = from_point + (control_from - from_point).normalize() * from_radius;
+                let to = to_point + (control_to - to_point).normalize() * to_radius;
+
+                Some(ArrowResolved::Bezier {
+                    from,
+                    to,
+                    control_from,
+                    control_to,
+                })
+            }
         }
     }
 }
@@ -115,7 +151,7 @@ fn sys_update_control_points(
 ) {
     for (control_point, mut cp_transform, mut cp_visibility) in q_control_points.iter_mut() {
         let (cp_location, cp_visible) = match control_point {
-            ControlPoint::Attachable(ControlPointLocation::Attached(parent_unit)) => {
+            ControlPoint::Attachable(ControlPointTarget::Attached(parent_unit)) => {
                 let location = if let Ok(unit_transform) = q_units.get(*parent_unit) {
                     unit_transform.translation.xy()
                 } else {
@@ -125,7 +161,7 @@ fn sys_update_control_points(
 
                 (location, false)
             }
-            ControlPoint::Attachable(ControlPointLocation::Floating(location))
+            ControlPoint::Attachable(ControlPointTarget::Floating(location))
             | ControlPoint::Floating(location) => (*location, true),
         };
 
@@ -144,17 +180,17 @@ trait ControlPointSpawnData {
 
 #[derive(Clone, Copy, Debug)]
 pub struct AttachableControlPoint {
-    pub location: ControlPointLocation,
+    pub location: ControlPointTarget,
 }
 impl AttachableControlPoint {
     pub fn from_meters(x: f32, y: f32) -> Self {
         Self {
-            location: ControlPointLocation::Floating(from_meters(x, y)),
+            location: ControlPointTarget::Floating(from_meters(x, y)),
         }
     }
     pub fn from_entity(entity: Entity) -> Self {
         Self {
-            location: ControlPointLocation::Attached(entity),
+            location: ControlPointTarget::Attached(entity),
         }
     }
 }
@@ -191,7 +227,7 @@ fn spawn_control_point<C: ControlPointSpawnData>(
                 spawn_data.to_component(),
                 ShapeBundle {
                     path: GeometryBuilder::build_as(&shapes::Circle {
-                        radius: 20.,
+                        radius: CONTROL_POINT_SIZE,
                         center: Vec2::ZERO,
                     }),
                     ..default()

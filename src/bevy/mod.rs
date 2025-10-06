@@ -57,6 +57,8 @@ pub fn init_bevy() -> App {
 // ------------------------------
 // coordinate scaling stuff
 // ------------------------------
+pub const CONTROL_POINT_SIZE: f32 = 20.;
+pub const UNIT_SIZE: f32 = 45.;
 pub const SIZE_SCALING_FACTOR: f32 = 100.; // pixels per meter
 pub fn from_meters(x: f32, y: f32) -> Vec2 {
     Vec2::new(x, y) * SIZE_SCALING_FACTOR
