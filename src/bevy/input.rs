@@ -47,10 +47,10 @@ fn sys_set_input_mode(
         r_next_input_mode.set(InputMode::View);
     }
     if action_state.just_pressed(&GlobalAction::InputModePosition) {
-        r_next_input_mode.set(InputMode::Position);
+        r_next_input_mode.set(InputMode::Units);
     }
     if action_state.just_pressed(&GlobalAction::InputModeMovement) {
-        r_next_input_mode.set(InputMode::Movement);
+        r_next_input_mode.set(InputMode::Arrows);
     }
 }
 
@@ -59,6 +59,6 @@ pub enum InputMode {
     // TODO find better names for these modes
     View, // only moves the view
     #[default]
-    Position, // moves players and free arrows
-    Movement, // draws new arrows
+    Units, // moves players and free arrows
+    Arrows, // draws new arrows
 }

@@ -21,6 +21,10 @@ impl Plugin for UnitPlugin {
             .add_systems(
                 Update,
                 sys_on_input_mode_change.run_if(state_changed::<InputMode>),
+            )
+            .add_systems(
+                Update,
+                sys_handle_unit_drag_events.run_if(in_state(InputMode::Arrows)),
             );
     }
 }
@@ -339,14 +343,11 @@ fn sys_on_input_mode_change(
 
     let input_observers = match **current_input_mode {
         InputMode::View => None,
-        InputMode::Position => Some(vec![
+        InputMode::Units => Some(vec![
             Observer::new(on_unit_grabbed_do_select),
             Observer::new(on_unit_dragged_do_move),
         ]),
-        InputMode::Movement => Some(vec![
-            Observer::new(on_unit_grabbed_do_select),
-            Observer::new(on_unit_dragged_do_draw_arrow),
-        ]),
+        InputMode::Arrows => Some(vec![Observer::new(on_unit_grabbed_do_select)]),
     };
     if let Some(observers) = input_observers {
         observers.into_iter().for_each(|mut observer| {
@@ -376,25 +377,63 @@ fn on_unit_dragged_do_move(
     }
 }
 
-fn on_unit_dragged_do_draw_arrow(
-    trigger: Trigger<Pointer<DragEnd>>,
-    q_position: Query<(Entity, &Transform), With<Unit>>,
+fn sys_handle_unit_drag_events(
+    mut er_drag_end_events: EventReader<Pointer<DragEnd>>,
+    mut er_drag_drop_events: EventReader<Pointer<DragDrop>>,
+    q_unit_positions: Query<&Transform, With<Unit>>,
     r_zoom_state: Res<ZoomState>,
     mut commands: Commands,
 ) {
-    if let Ok((id, unit)) = q_position.get(trigger.target) {
-        let unit_position = unit.translation.xy();
-        let mut drag_distance = trigger.distance;
-        drag_distance.y *= -1.;
-        drag_distance *= r_zoom_state.current_zoom_factor;
+    let drop_events: Vec<(Entity, Entity)> = er_drag_drop_events
+        .read()
+        .filter_map(|drop_event| {
+            if q_unit_positions.contains(drop_event.dropped)
+                && q_unit_positions.contains(drop_event.target)
+            {
+                Some((drop_event.dropped, drop_event.target))
+            } else {
+                None
+            }
+        })
+        .collect();
+    let drag_end_events: Vec<(Entity, Vec2)> = er_drag_end_events
+        .read()
+        .filter_map(|drag_end_event| {
+            if drop_events
+                .iter()
+                .any(|(entity, _)| entity == &drag_end_event.target)
+            {
+                None
+            } else {
+                let mut drag_distance = drag_end_event.distance;
+                drag_distance.y *= -1.;
+                drag_distance *= r_zoom_state.current_zoom_factor;
+                Some((drag_end_event.target, drag_distance))
+            }
+        })
+        .collect();
+
+    for (source, target) in drop_events {
         spawn_arrow(
             ArrowSpawnData::Straight {
-                from: AttachableControlPoint::from_entity(id),
-                to: AttachableControlPoint {
-                    location: ControlPointLocation::Floating(unit_position + drag_distance),
-                },
+                from: AttachableControlPoint::from_entity(source),
+                to: AttachableControlPoint::from_entity(target),
             },
             &mut commands,
         );
+    }
+    for (source, distance) in drag_end_events {
+        if let Ok(unit) = q_unit_positions.get(source) {
+            let unit_position = unit.translation.xy();
+            spawn_arrow(
+                ArrowSpawnData::Straight {
+                    from: AttachableControlPoint::from_entity(source),
+                    to: AttachableControlPoint {
+                        location: ControlPointLocation::Floating(unit_position + distance),
+                    },
+                },
+                &mut commands,
+            );
+        }
     }
 }
