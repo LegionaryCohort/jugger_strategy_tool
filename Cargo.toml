@@ -13,7 +13,7 @@ leafwing-input-manager = "0.20"
 leptos = { version = "0.8.17", features = ["csr"] }
 leptos_meta = { version = "0.8.6" }
 leptos_router = { version = "0.8.13" }
-leptos-bevy-canvas = "0.5.1"
+leptos-bevy-canvas = "0.5.2"
 console_log = "1"
 log = "0.4.29"
 console_error_panic_hook = "0.1"
@@ -23,13 +23,13 @@ console_error_panic_hook = "0.1"
 # strum_macros = "0.25"
 
 [target.'cfg(target_os = "linux")'.dependencies]
-wayland-sys = { version = "0.31.10", features = ["dlopen"] }
+wayland-sys = { version = "0.31.11", features = ["dlopen"] }
 
 
 [dev-dependencies]
-wasm-bindgen = "0.2.115"
-wasm-bindgen-test = "0.3.65"
-web-sys = { version = "0.3.92", features = [
+wasm-bindgen = "0.2.117"
+wasm-bindgen-test = "0.3.67"
+web-sys = { version = "0.3.94", features = [
 	"Document",
 	"Window",
 	"CanvasRenderingContext2d",

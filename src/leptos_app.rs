@@ -12,7 +12,8 @@ use leptos_bevy_canvas::prelude::*;
 
 #[component]
 pub fn App() -> impl IntoView {
-    let (selected_unit, selected_unit_qd) = single_query_signal::<(Unit,), With<Selected>>();
+    let (selected_unit, selected_unit_qd) =
+        single_query_signal::<(Selected, Unit), With<Selected>>();
     Effect::new(move || {
         leptos::logging::log!("changed: {:?}", selected_unit.get());
     });

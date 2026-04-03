@@ -14,7 +14,7 @@ use leptos_bevy_canvas::prelude::{BevyQueryDuplex, LeptosBevyApp};
 use unit::{Selected, Unit, UnitPlugin};
 
 pub struct QueryDuplexes {
-    pub selected_unit_qd: BevyQueryDuplex<(Unit,), With<Selected>>,
+    pub selected_unit_qd: BevyQueryDuplex<(Selected, Unit), With<Selected>>,
 }
 
 pub fn init_bevy_for_leptos(query_duplexes: QueryDuplexes) -> App {
