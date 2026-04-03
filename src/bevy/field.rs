@@ -50,18 +50,28 @@ fn setup_field(mut commands: Commands) {
         .stroke((BLACK, 10.))
         .build();
 
-    let center_line =
-        ShapeBuilder::with(&shapes::Line(from_meters(0., -10.), from_meters(0., 10.)))
-            .stroke(Stroke {
-                color: Color::from(BLACK),
-                options: StrokeOptions::DEFAULT.with_line_width(6.),
-            })
-            .build();
+    let mut center_line_path = ShapePath::new();
+    for marker in (-10..=-2).step_by(2) {
+        center_line_path = center_line_path
+            .move_to(from_meters(0., marker as f32))
+            .line_to(from_meters(0., (marker + 1) as f32));
+    }
+    for marker in (1..=9).step_by(2) {
+        center_line_path = center_line_path
+            .move_to(from_meters(0., marker as f32))
+            .line_to(from_meters(0., (marker + 1) as f32));
+    }
+    let center_line = ShapeBuilder::with(&center_line_path)
+        .stroke(Stroke {
+            color: Color::from(BLACK),
+            options: StrokeOptions::DEFAULT.with_line_width(10.),
+        })
+        .build();
 
     commands
         .spawn((
             field_shape,
             Transform::from_xyz(0., 0., Z_LEVEL_FIELD_BACKGROUND),
         ))
-        .with_child(center_line);
+        .with_child((center_line, Transform::from_xyz(0., 0., 1.)));
 }
