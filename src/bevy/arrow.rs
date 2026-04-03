@@ -45,7 +45,7 @@ fn sys_update_arrows(
             commands.get_entity(entity).unwrap().insert(
                 ShapeBuilder::new()
                     .add(&calc_arrow_path(&arrow_resolved))
-                    .fill(Color::from(PINK))
+                    .stroke((Color::from(BLACK), 10.))
                     .build(),
             );
             *transform = arrow_resolved.get_transform();
@@ -100,6 +100,7 @@ impl ControlPointRef {
 }
 
 #[derive(Component, Clone, Copy, Debug)]
+#[require(Transform)]
 enum Arrow {
     Straight {
         from: ControlPointRef,
@@ -235,7 +236,7 @@ fn spawn_control_point<C: ControlPointSpawnData>(
                     radius: CONTROL_POINT_SIZE,
                     center: Vec2::ZERO,
                 })
-                .fill(Color::from(PINK))
+                .fill(Color::from(DEEP_PINK))
                 .build(),
             ))
             .id(),
@@ -382,11 +383,6 @@ fn calc_arrow_path(arrow: &ArrowResolved) -> ShapePath {
             .move_to(arrow_head.point)
             .line_to(arrow_head.left);
     }
-
-    // TODO: figure out if I can somehow convert a ShapePath into a tess::Path
-    // because I can construct the former just fine, but I need the latter
-    // alternatively I could rebuild the shape entirely every time the arrow changes
-    // (which probably wouldn't be incorrect, because that's what kind of happens anyway)
 
     arrow_builder
 }
