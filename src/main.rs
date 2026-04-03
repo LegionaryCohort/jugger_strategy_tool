@@ -2,8 +2,8 @@
 mod bevy;
 mod leptos_app;
 
-pub const RENDER_WIDTH: f32 = 990.0;
-pub const RENDER_HEIGHT: f32 = 484.0;
+pub const RENDER_WIDTH: u32 = 990;
+pub const RENDER_HEIGHT: u32 = 484;
 
 #[cfg(not(target_arch = "wasm32"))]
 fn main() {

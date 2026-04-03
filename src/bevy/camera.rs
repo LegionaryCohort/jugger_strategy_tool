@@ -27,9 +27,7 @@ pub enum CameraAction {
 fn sys_setup(mut commands: Commands) {
     commands.spawn((
         Camera2d,
-        InputManagerBundle::with_map(
-            InputMap::default().with_axis(CameraAction::Zoom, MouseScrollAxis::Y),
-        ),
+        InputMap::default().with_axis(CameraAction::Zoom, MouseScrollAxis::Y),
     ));
 }
 
@@ -71,7 +69,9 @@ fn sys_zoom_camera(
 
 fn sys_sync_zoom_state(
     r_zoom_state: Res<ZoomState>,
-    mut q_camera: Single<&mut OrthographicProjection, With<Camera2d>>,
+    mut q_camera: Single<&mut Projection, With<Camera2d>>,
 ) {
-    q_camera.scale = r_zoom_state.current_zoom_factor;
+    if let Projection::Orthographic(projection) = (*q_camera).as_mut() {
+        projection.scale = r_zoom_state.current_zoom_factor;
+    }
 }

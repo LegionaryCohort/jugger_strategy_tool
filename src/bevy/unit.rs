@@ -138,26 +138,25 @@ fn spawn_unit(spawn_data: SpawnData, commands: &mut Commands, r_asset_server: &R
             },
         ),
     };
-    let background_bundle = ShapeBundle {
-        path: GeometryBuilder::build_as(&shapes::Circle {
-            radius: UNIT_SIZE,
-            center: Vec2::ZERO,
-        }),
-        transform: Transform::from_translation(position.extend(Z_LEVEL_UNITS)),
-        ..default()
-    };
-    let sprite = unit_component.get_sprite(r_asset_server);
 
+    let sprite = unit_component.get_sprite(r_asset_server);
     commands
         .spawn((
-            background_bundle,
-            Fill::color(unit_component.color(false)),
+            (
+                ShapeBuilder::with(&shapes::Circle {
+                    radius: UNIT_SIZE,
+                    center: Vec2::ZERO,
+                })
+                .fill(unit_component.color(false))
+                .build(),
+                Transform::from_translation(position.extend(Z_LEVEL_UNITS)),
+            ),
             unit_component,
         ))
         .with_child((
             sprite,
             Transform::from_xyz(0., 0., Z_LEVEL_UNIT_SPRITES),
-            PickingBehavior::IGNORE,
+            Pickable::IGNORE,
         ));
 }
 
@@ -302,28 +301,28 @@ fn sys_sync_selection_state(
 }
 
 fn sys_update_unit_visuals(
-    mut q_unit: Query<(Entity, &mut Fill, &Unit)>,
+    mut q_unit: Query<(&mut Shape, &Unit)>,
     q_selected: Query<Entity, With<Selected>>,
     mut q_deselected: RemovedComponents<Selected>,
-    mut commands: Commands,
 ) {
     q_deselected.read().for_each(|entity| {
-        if let Ok((entity, mut fill, unit)) = q_unit.get_mut(entity) {
-            fill.color = unit.color(false);
-            commands.entity(entity).remove::<Stroke>();
+        if let Ok((mut shape, unit)) = q_unit.get_mut(entity) {
+            shape.fill.expect("Unit should have a color").color = unit.color(false);
+            shape.stroke = None;
         }
     });
 
     q_selected.iter().for_each(|entity| {
-        if let Ok((entity, mut fill, unit)) = q_unit.get_mut(entity) {
-            fill.color = unit.color(true);
-            let stroke_color = match unit {
+        if let Ok((mut shape, unit)) = q_unit.get_mut(entity) {
+            shape.fill.expect("Unit should have a color").color = unit.color(true);
+            let stroke_color = Color::from(match unit {
                 Unit::Jugg => BLACK,
                 Unit::Player { .. } => WHITE,
-            };
-            commands
-                .entity(entity)
-                .insert(Stroke::new(stroke_color, 5.));
+            });
+            shape.stroke = Some(Stroke {
+                options: StrokeOptions::default().with_line_width(5.),
+                color: stroke_color,
+            });
         }
     });
 }
@@ -352,24 +351,24 @@ fn sys_on_input_mode_change(
     if let Some(observers) = input_observers {
         observers.into_iter().for_each(|mut observer| {
             q_units.iter().for_each(|unit| observer.watch_entity(unit));
-            commands.spawn((observer, StateScoped(**current_input_mode)));
+            commands.spawn((observer, DespawnOnExit(**current_input_mode)));
         });
     }
 }
 
 fn on_unit_grabbed_do_select(
-    trigger: Trigger<Pointer<Down>>,
+    trigger: On<Pointer<Press>>,
     mut r_unit_registry: ResMut<UnitRegistry>,
 ) {
-    r_unit_registry.selected = Some(trigger.target);
+    r_unit_registry.selected = Some(trigger.entity);
 }
 
 fn on_unit_dragged_do_move(
-    trigger: Trigger<Pointer<Drag>>,
+    trigger: On<Pointer<Drag>>,
     mut q_position: Query<&mut Transform, With<Unit>>,
     r_zoom_state: Res<ZoomState>,
 ) {
-    if let Ok(mut target_transform) = q_position.get_mut(trigger.target) {
+    if let Ok(mut target_transform) = q_position.get_mut(trigger.entity) {
         let mut delta = trigger.delta;
         delta.y *= -1.;
         delta *= r_zoom_state.current_zoom_factor;
@@ -378,15 +377,15 @@ fn on_unit_dragged_do_move(
 }
 
 fn on_unit_dropped_spawn_arrow(
-    trigger: Trigger<Pointer<DragDrop>>,
+    trigger: On<Pointer<DragDrop>>,
     q_units: Query<Entity, With<Unit>>,
     mut commands: Commands,
 ) {
-    if q_units.contains(trigger.dropped) && q_units.contains(trigger.target) {
+    if q_units.contains(trigger.dropped) && q_units.contains(trigger.entity) {
         spawn_arrow(
             ArrowSpawnData::Straight {
                 from: AttachableControlPoint::from_entity(trigger.dropped),
-                to: AttachableControlPoint::from_entity(trigger.target),
+                to: AttachableControlPoint::from_entity(trigger.entity),
             },
             &mut commands,
         );
@@ -394,26 +393,26 @@ fn on_unit_dropped_spawn_arrow(
 }
 
 fn on_unit_drag_ended_spawn_arrow(
-    trigger: Trigger<Pointer<DragEnd>>,
-    mut er_drag_drop_events: EventReader<Pointer<DragDrop>>,
+    trigger: On<Pointer<DragEnd>>,
+    mut er_drag_drop_events: MessageReader<Pointer<DragDrop>>,
     q_unit_positions: Query<&Transform, With<Unit>>,
     r_zoom_state: Res<ZoomState>,
     mut commands: Commands,
 ) {
     if er_drag_drop_events.read().any(|drop_event| {
-        drop_event.dropped == trigger.target && q_unit_positions.contains(drop_event.target)
+        drop_event.dropped == trigger.entity && q_unit_positions.contains(drop_event.entity)
     }) {
         return;
     }
 
-    if let Ok(unit) = q_unit_positions.get(trigger.target) {
+    if let Ok(unit) = q_unit_positions.get(trigger.entity) {
         let mut drag_distance = trigger.distance;
         drag_distance.y *= -1.;
         drag_distance *= r_zoom_state.current_zoom_factor;
         let unit_position = unit.translation.xy();
         spawn_arrow(
             ArrowSpawnData::Straight {
-                from: AttachableControlPoint::from_entity(trigger.target),
+                from: AttachableControlPoint::from_entity(trigger.entity),
                 to: AttachableControlPoint {
                     location: ControlPointTarget::Floating(unit_position + drag_distance),
                 },

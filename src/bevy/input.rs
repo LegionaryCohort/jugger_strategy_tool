@@ -8,7 +8,7 @@ impl Plugin for InputPlugin {
             .init_resource::<ActionState<GlobalAction>>()
             .insert_resource(GlobalAction::input_map())
             .init_state::<InputMode>()
-            .enable_state_scoped_entities::<InputMode>()
+            // .enable_state_scoped_entities::<InputMode>()
             .add_systems(Update, sys_exit_bevy)
             .add_systems(Update, sys_set_input_mode);
     }
@@ -32,9 +32,9 @@ impl GlobalAction {
     }
 }
 
-fn sys_exit_bevy(action_state: Res<ActionState<GlobalAction>>, mut writer: EventWriter<AppExit>) {
+fn sys_exit_bevy(action_state: Res<ActionState<GlobalAction>>, mut writer: MessageWriter<AppExit>) {
     if action_state.just_pressed(&GlobalAction::Exit) {
-        writer.send(AppExit::Success);
+        writer.write(AppExit::Success);
     }
 }
 

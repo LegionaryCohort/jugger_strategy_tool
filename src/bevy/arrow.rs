@@ -36,12 +36,18 @@ fn sys_spawn_test_arrows(mut commands: Commands) {
 }
 
 fn sys_update_arrows(
-    mut q_arrows: Query<(&Arrow, &mut Path, &mut Transform), Without<ControlPoint>>,
+    mut commands: Commands,
+    mut q_arrows: Query<(Entity, &Arrow, &mut Transform), Without<ControlPoint>>,
     q_control_points: Query<(&Transform, &ControlPoint)>,
 ) {
-    for (arrow, mut path, mut transform) in q_arrows.iter_mut() {
+    for (entity, arrow, mut transform) in q_arrows.iter_mut() {
         if let Some(arrow_resolved) = arrow.resolve(&q_control_points) {
-            *path = calc_arrow_path(&arrow_resolved);
+            commands.get_entity(entity).unwrap().insert(
+                ShapeBuilder::new()
+                    .add(&calc_arrow_path(&arrow_resolved))
+                    .fill(Color::from(PINK))
+                    .build(),
+            );
             *transform = arrow_resolved.get_transform();
         } else {
             error!("Arrow control points failed to resolve")
@@ -175,7 +181,7 @@ fn sys_update_control_points(
 }
 
 trait ControlPointSpawnData {
-    fn to_component(&self) -> ControlPoint;
+    fn to_control_point(&self) -> ControlPoint;
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -195,7 +201,7 @@ impl AttachableControlPoint {
     }
 }
 impl ControlPointSpawnData for AttachableControlPoint {
-    fn to_component(&self) -> ControlPoint {
+    fn to_control_point(&self) -> ControlPoint {
         ControlPoint::Attachable(self.location)
     }
 }
@@ -212,7 +218,7 @@ impl FloatingControlPoint {
     }
 }
 impl ControlPointSpawnData for FloatingControlPoint {
-    fn to_component(&self) -> ControlPoint {
+    fn to_control_point(&self) -> ControlPoint {
         ControlPoint::Floating(self.location)
     }
 }
@@ -224,14 +230,13 @@ fn spawn_control_point<C: ControlPointSpawnData>(
     ControlPointRef(
         commands
             .spawn((
-                spawn_data.to_component(),
-                ShapeBundle {
-                    path: GeometryBuilder::build_as(&shapes::Circle {
-                        radius: CONTROL_POINT_SIZE,
-                        center: Vec2::ZERO,
-                    }),
-                    ..default()
-                },
+                spawn_data.to_control_point(),
+                ShapeBuilder::with(&shapes::Circle {
+                    radius: CONTROL_POINT_SIZE,
+                    center: Vec2::ZERO,
+                })
+                .fill(Color::from(PINK))
+                .build(),
             ))
             .id(),
     )
@@ -250,7 +255,7 @@ pub enum ArrowSpawnData {
     },
 }
 pub fn spawn_arrow(spawn_data: ArrowSpawnData, commands: &mut Commands) {
-    let arrow_component = match spawn_data {
+    let arrow = match spawn_data {
         ArrowSpawnData::Straight { from, to } => {
             let from = spawn_control_point(from, commands);
             let to = spawn_control_point(to, commands);
@@ -275,11 +280,7 @@ pub fn spawn_arrow(spawn_data: ArrowSpawnData, commands: &mut Commands) {
         }
     };
 
-    commands.spawn((
-        arrow_component,
-        ShapeBundle::default(),
-        Stroke::new(BLACK, 10.),
-    ));
+    commands.spawn(arrow);
 }
 
 #[derive(Component, Clone, Copy, Debug)]
@@ -360,31 +361,32 @@ fn calc_arrowhead(arrow: &ArrowResolved) -> Option<Arrowhead> {
     })
 }
 
-fn calc_arrow_path(arrow: &ArrowResolved) -> Path {
+fn calc_arrow_path(arrow: &ArrowResolved) -> ShapePath {
     let arrow = arrow.localized();
-    let mut arrow_builder = PathBuilder::new();
-    match arrow {
-        ArrowResolved::Straight { from, to } => {
-            arrow_builder.move_to(from);
-            arrow_builder.line_to(to);
-        }
+    let mut arrow_builder = ShapePath::new();
+    arrow_builder = match arrow {
+        ArrowResolved::Straight { from, to } => arrow_builder.move_to(from).line_to(to),
         ArrowResolved::Bezier {
             from,
             to,
             control_from,
             control_to,
-        } => {
-            arrow_builder.move_to(from);
-            arrow_builder.cubic_bezier_to(control_from, control_to, to);
-        }
-    }
+        } => arrow_builder
+            .move_to(from)
+            .cubic_bezier_to(control_from, control_to, to),
+    };
     if let Some(arrow_head) = calc_arrowhead(&arrow) {
-        arrow_builder.move_to(arrow_head.point);
-        arrow_builder.line_to(arrow_head.right);
-        arrow_builder.move_to(arrow_head.point);
-        arrow_builder.line_to(arrow_head.left);
+        arrow_builder = arrow_builder
+            .move_to(arrow_head.point)
+            .line_to(arrow_head.right)
+            .move_to(arrow_head.point)
+            .line_to(arrow_head.left);
     }
-    let arrow_path = arrow_builder.build();
 
-    GeometryBuilder::new().add(&arrow_path).build()
+    // TODO: figure out if I can somehow convert a ShapePath into a tess::Path
+    // because I can construct the former just fine, but I need the latter
+    // alternatively I could rebuild the shape entirely every time the arrow changes
+    // (which probably wouldn't be incorrect, because that's what kind of happens anyway)
+
+    arrow_builder
 }

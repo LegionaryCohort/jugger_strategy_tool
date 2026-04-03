@@ -16,8 +16,9 @@ pub fn App() -> impl IntoView {
     Effect::new(move || {
         leptos::logging::log!("changed: {:?}", selected_unit.get());
     });
+    let max_dimensions = (RENDER_WIDTH as f32 + 20., RENDER_HEIGHT as f32 + 20.);
     view! {
-        <Frame id="bevy-frame" max_dimensions=(RENDER_WIDTH + 20., RENDER_HEIGHT + 20.)>
+        <Frame id="bevy-frame" max_dimensions=max_dimensions>
             <BevyCanvas
                 init=move || { init_bevy_for_leptos(QueryDuplexes { selected_unit_qd }) }
                 {..}

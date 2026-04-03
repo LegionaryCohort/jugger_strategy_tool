@@ -10,7 +10,7 @@ impl Plugin for FieldPlugin {
 }
 
 fn setup_field(mut commands: Commands) {
-    let field_corners = shapes::Polygon {
+    let field_border = shapes::Polygon {
         points: [
             from_meters(-15., -10.),
             from_meters(-20., -5.),
@@ -25,48 +25,43 @@ fn setup_field(mut commands: Commands) {
         .collect(),
         closed: true,
     };
-    let field_border = GeometryBuilder::build_as(&field_corners);
 
-    let mut center_line_builder = PathBuilder::new();
-    for marker in (-10..=-2).step_by(2) {
-        center_line_builder.move_to(from_meters(0., marker as f32));
-        center_line_builder.line_to(from_meters(0., (marker + 1) as f32));
-    }
-    for marker in (1..=9).step_by(2) {
-        center_line_builder.move_to(from_meters(0., marker as f32));
-        center_line_builder.line_to(from_meters(0., (marker + 1) as f32));
-    }
-    let center_line = center_line_builder.build();
-
-    let center_point = GeometryBuilder::build_as(&shapes::Circle {
+    let center_point = shapes::Circle {
         radius: radius_from_meters(0.1),
         center: Vec2::ZERO,
-    });
+    };
 
-    let left_base = GeometryBuilder::build_as(&shapes::Circle {
+    let left_base = shapes::Circle {
         radius: radius_from_meters(0.2),
         center: from_meters(-18., 0.),
-    });
-    let right_base = GeometryBuilder::build_as(&shapes::Circle {
+    };
+    let right_base = shapes::Circle {
         radius: radius_from_meters(0.2),
         center: from_meters(18., 0.),
-    });
+    };
 
-    let field_shape = GeometryBuilder::new()
+    let field_shape = ShapeBuilder::new()
         .add(&field_border)
-        .add(&center_line)
+        // .add(&center_line)
         .add(&center_point)
         .add(&left_base)
         .add(&right_base)
+        .fill(LIGHT_GREEN)
+        .stroke((BLACK, 10.))
         .build();
 
-    commands.spawn((
-        ShapeBundle {
-            path: field_shape,
-            transform: Transform::from_xyz(0., 0., Z_LEVEL_FIELD_BACKGROUND),
-            ..default()
-        },
-        Stroke::new(BLACK, 10.),
-        Fill::color(LIGHT_GREEN),
-    ));
+    let center_line =
+        ShapeBuilder::with(&shapes::Line(from_meters(0., -10.), from_meters(0., 10.)))
+            .stroke(Stroke {
+                color: Color::from(BLACK),
+                options: StrokeOptions::DEFAULT.with_line_width(6.),
+            })
+            .build();
+
+    commands
+        .spawn((
+            field_shape,
+            Transform::from_xyz(0., 0., Z_LEVEL_FIELD_BACKGROUND),
+        ))
+        .with_child(center_line);
 }
