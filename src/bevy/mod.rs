@@ -1,10 +1,14 @@
 pub mod arrow;
 pub mod camera;
 pub mod field;
+pub mod gestures;
 pub mod input;
 pub mod unit;
 
-use crate::{bevy::arrow::ArrowPlugin, RENDER_HEIGHT, RENDER_WIDTH};
+use crate::{
+    bevy::{arrow::ArrowPlugin, gestures::GesturesPlugin},
+    RENDER_HEIGHT, RENDER_WIDTH,
+};
 use bevy::{asset::AssetMetaCheck, prelude::*, window::WindowResolution};
 use bevy_prototype_lyon::prelude::ShapePlugin;
 use camera::CameraPlugin;
@@ -49,7 +53,8 @@ pub fn init_bevy() -> App {
     .add_plugins(ShapePlugin)
     .add_plugins(FieldPlugin)
     .add_plugins(UnitPlugin)
-    .add_plugins(InputPlugin);
+    .add_plugins(InputPlugin)
+    .add_plugins(GesturesPlugin);
 
     app
 }

@@ -48,7 +48,7 @@ impl Default for ZoomState {
     }
 }
 impl ZoomState {
-    fn zoom(&mut self, delta: f32) {
+    pub fn zoom(&mut self, delta: f32) {
         #[cfg(target_arch = "wasm32")]
         let delta = delta / 120.;
 
