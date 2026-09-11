@@ -1,4 +1,12 @@
-use crate::bevy::{from_meters, input::Selected, UNIT_SIZE, Z_LEVEL_UNITS, Z_LEVEL_UNIT_SPRITES};
+use crate::bevy::{
+    arrow::AttachableControlPoint,
+    from_meters,
+    input::{
+        attaching::Attachable,
+        dragging::{Draggable, Selected},
+    },
+    UNIT_SIZE, Z_LEVEL_UNITS, Z_LEVEL_UNIT_SPRITES,
+};
 use bevy::{color::palettes::css::*, prelude::*};
 use bevy_prototype_lyon::prelude::*;
 
@@ -127,15 +135,15 @@ fn spawn_unit(spawn_data: SpawnData, commands: &mut Commands, r_asset_server: &R
     let sprite = unit_component.get_sprite(r_asset_server);
     commands
         .spawn((
-            (
-                ShapeBuilder::with(&shapes::Circle {
-                    radius: UNIT_SIZE,
-                    center: Vec2::ZERO,
-                })
-                .fill(unit_component.color(false))
-                .build(),
-                Transform::from_translation(position.extend(Z_LEVEL_UNITS)),
-            ),
+            ShapeBuilder::with(&shapes::Circle {
+                radius: UNIT_SIZE,
+                center: Vec2::ZERO,
+            })
+            .fill(unit_component.color(false))
+            .build(),
+            Transform::from_translation(position.extend(Z_LEVEL_UNITS)),
+            Draggable,
+            Attachable,
             unit_component,
         ))
         .with_child((

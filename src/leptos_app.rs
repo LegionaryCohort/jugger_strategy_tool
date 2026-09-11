@@ -1,5 +1,5 @@
 use crate::{
-    bevy::{init_bevy_for_leptos, input::Selected, unit::Unit, QueryDuplexes},
+    bevy::{init_bevy_for_leptos, input::dragging::Selected, unit::Unit, QueryDuplexes},
     RENDER_HEIGHT, RENDER_WIDTH,
 };
 use bevy::prelude::With;

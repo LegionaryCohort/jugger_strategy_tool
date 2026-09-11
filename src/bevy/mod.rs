@@ -6,7 +6,7 @@ pub mod input;
 pub mod unit;
 
 use crate::{
-    bevy::{arrow::ArrowPlugin, gestures::GesturesPlugin, input::Selected},
+    bevy::{arrow::ArrowPlugin, gestures::GesturesPlugin, input::dragging::Selected},
     RENDER_HEIGHT, RENDER_WIDTH,
 };
 use bevy::{asset::AssetMetaCheck, prelude::*, window::WindowResolution};

@@ -1,5 +1,8 @@
 use crate::bevy::{
-    from_meters, unit::Unit, CONTROL_POINT_SIZE, SIZE_SCALING_FACTOR, UNIT_SIZE, Z_LEVEL_ARROWS,
+    from_meters,
+    input::{attaching::Attachable, dragging::Draggable},
+    unit::Unit,
+    CONTROL_POINT_SIZE, SIZE_SCALING_FACTOR, UNIT_SIZE, Z_LEVEL_ARROWS,
     Z_LEVEL_ARROW_CONTROL_POINTS,
 };
 use bevy::{app::Plugin, color::palettes::css::*, ecs::system::Commands, prelude::*};
@@ -56,28 +59,28 @@ fn sys_update_arrows(
 }
 
 #[derive(Component, Clone, Copy, Debug)]
-enum ControlPoint {
+pub enum ControlPoint {
     Attachable(ControlPointTarget),
-    Floating(Vec2),
+    Floating,
 }
 impl ControlPoint {
     fn resolve_size(&self) -> f32 {
         match self {
             ControlPoint::Attachable(target) => target.resolve_size(),
-            ControlPoint::Floating(_) => CONTROL_POINT_SIZE,
+            ControlPoint::Floating => CONTROL_POINT_SIZE,
         }
     }
 }
 
 #[derive(Clone, Copy, Debug)]
 pub enum ControlPointTarget {
-    Floating(Vec2),
+    Floating,
     Attached(Entity),
 }
 impl ControlPointTarget {
     fn resolve_size(&self) -> f32 {
         match self {
-            ControlPointTarget::Floating(_) => CONTROL_POINT_SIZE,
+            ControlPointTarget::Floating => CONTROL_POINT_SIZE,
             ControlPointTarget::Attached(_) => UNIT_SIZE,
         }
     }
@@ -166,13 +169,16 @@ fn sys_update_control_points(
                     Vec2::ZERO
                 };
 
-                (location, false)
+                (Some(location), false)
             }
-            ControlPoint::Attachable(ControlPointTarget::Floating(location))
-            | ControlPoint::Floating(location) => (*location, true),
+            ControlPoint::Attachable(ControlPointTarget::Floating) | ControlPoint::Floating => {
+                (None, true)
+            }
         };
 
-        cp_transform.translation = cp_location.extend(Z_LEVEL_ARROW_CONTROL_POINTS);
+        if let Some(location) = cp_location {
+            cp_transform.translation = location.extend(Z_LEVEL_ARROW_CONTROL_POINTS);
+        }
         cp_visibility.set_if_neq(if cp_visible {
             Visibility::Inherited
         } else {
@@ -182,28 +188,31 @@ fn sys_update_control_points(
 }
 
 trait ControlPointSpawnData {
-    fn to_control_point(&self) -> ControlPoint;
+    fn to_control_point(&self) -> (ControlPoint, Vec2);
 }
 
 #[derive(Clone, Copy, Debug)]
 pub struct AttachableControlPoint {
-    pub location: ControlPointTarget,
+    pub target: ControlPointTarget,
+    pub location: Vec2,
 }
 impl AttachableControlPoint {
     pub fn from_meters(x: f32, y: f32) -> Self {
         Self {
-            location: ControlPointTarget::Floating(from_meters(x, y)),
+            target: ControlPointTarget::Floating,
+            location: from_meters(x, y),
         }
     }
     pub fn from_entity(entity: Entity) -> Self {
         Self {
-            location: ControlPointTarget::Attached(entity),
+            target: ControlPointTarget::Attached(entity),
+            location: Vec2::ZERO,
         }
     }
 }
 impl ControlPointSpawnData for AttachableControlPoint {
-    fn to_control_point(&self) -> ControlPoint {
-        ControlPoint::Attachable(self.location)
+    fn to_control_point(&self) -> (ControlPoint, Vec2) {
+        (ControlPoint::Attachable(self.target), self.location)
     }
 }
 
@@ -219,8 +228,8 @@ impl FloatingControlPoint {
     }
 }
 impl ControlPointSpawnData for FloatingControlPoint {
-    fn to_control_point(&self) -> ControlPoint {
-        ControlPoint::Floating(self.location)
+    fn to_control_point(&self) -> (ControlPoint, Vec2) {
+        (ControlPoint::Floating, self.location)
     }
 }
 
@@ -228,19 +237,23 @@ fn spawn_control_point<C: ControlPointSpawnData>(
     spawn_data: C,
     commands: &mut Commands,
 ) -> ControlPointRef {
-    ControlPointRef(
-        commands
-            .spawn((
-                spawn_data.to_control_point(),
-                ShapeBuilder::with(&shapes::Circle {
-                    radius: CONTROL_POINT_SIZE,
-                    center: Vec2::ZERO,
-                })
-                .fill(Color::from(DEEP_PINK))
-                .build(),
-            ))
-            .id(),
-    )
+    let (control_point, location) = spawn_data.to_control_point();
+    let mut control_point_entity = commands.spawn((
+        control_point,
+        Transform::from_translation(location.extend(Z_LEVEL_ARROW_CONTROL_POINTS)),
+        ShapeBuilder::with(&shapes::Circle {
+            radius: CONTROL_POINT_SIZE,
+            center: Vec2::ZERO,
+        })
+        .fill(Color::from(DEEP_PINK))
+        .build(),
+        Draggable,
+    ));
+    if let ControlPoint::Attachable(_) = control_point {
+        control_point_entity.insert(Attachable);
+    }
+
+    ControlPointRef(control_point_entity.id())
 }
 
 pub enum ArrowSpawnData {
