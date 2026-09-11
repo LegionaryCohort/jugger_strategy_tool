@@ -1,27 +1,12 @@
-use crate::bevy::{
-    arrow::{spawn_arrow, ArrowSpawnData, AttachableControlPoint, ControlPointTarget},
-    camera::ZoomState,
-    from_meters,
-    input::InputMode,
-    UNIT_SIZE, Z_LEVEL_UNITS, Z_LEVEL_UNIT_SPRITES,
-};
+use crate::bevy::{from_meters, input::Selected, UNIT_SIZE, Z_LEVEL_UNITS, Z_LEVEL_UNIT_SPRITES};
 use bevy::{color::palettes::css::*, prelude::*};
 use bevy_prototype_lyon::prelude::*;
 
 pub struct UnitPlugin;
 impl Plugin for UnitPlugin {
     fn build(&self, app: &mut bevy::app::App) {
-        app.init_resource::<UnitRegistry>()
-            .add_systems(Startup, sys_spawn_default_units)
-            .add_systems(
-                Update,
-                sys_sync_selection_state.run_if(resource_changed::<UnitRegistry>),
-            )
-            .add_systems(Update, sys_update_unit_visuals)
-            .add_systems(
-                Update,
-                sys_on_input_mode_change.run_if(state_changed::<InputMode>),
-            );
+        app.add_systems(Startup, sys_spawn_default_units)
+            .add_systems(Update, sys_update_unit_visuals);
     }
 }
 
@@ -274,32 +259,6 @@ enum UnitState {
     Pinned { downtime: u8 },
 }
 
-#[derive(Resource, Default)]
-pub struct UnitRegistry {
-    selected: Option<Entity>,
-}
-
-#[derive(Component, Clone, Debug)]
-pub struct Selected;
-
-fn sys_sync_selection_state(
-    r_unit_registry: Res<UnitRegistry>,
-    q_unit: Query<Entity, With<Unit>>,
-    mut commands: Commands,
-) {
-    q_unit.iter().for_each(|entity| {
-        commands.entity(entity).remove::<Selected>();
-    });
-
-    if let Some(selected_entity) = r_unit_registry.selected {
-        if let Ok(entity) = q_unit.get(selected_entity) {
-            commands.entity(entity).insert(Selected);
-        } else {
-            error!("{selected_entity} is selected, but is not a unit entity.")
-        }
-    }
-}
-
 fn sys_update_unit_visuals(
     mut q_unit: Query<(&mut Shape, &Unit)>,
     q_selected: Query<Entity, With<Selected>>,
@@ -325,99 +284,4 @@ fn sys_update_unit_visuals(
             });
         }
     });
-}
-
-fn sys_on_input_mode_change(
-    current_input_mode: Res<State<InputMode>>,
-    q_units: Query<Entity, With<Unit>>,
-    mut commands: Commands,
-) {
-    // TODO move this to input to have all variations in one place
-
-    println!("Input mode changed: {:?}", current_input_mode);
-
-    let input_observers = match **current_input_mode {
-        InputMode::View => None,
-        InputMode::Units => Some(vec![
-            Observer::new(on_unit_grabbed_do_select),
-            Observer::new(on_unit_dragged_do_move),
-        ]),
-        InputMode::Arrows => Some(vec![
-            Observer::new(on_unit_grabbed_do_select),
-            Observer::new(on_unit_dropped_spawn_arrow),
-            Observer::new(on_unit_drag_ended_spawn_arrow),
-        ]),
-    };
-    if let Some(observers) = input_observers {
-        observers.into_iter().for_each(|mut observer| {
-            q_units.iter().for_each(|unit| observer.watch_entity(unit));
-            commands.spawn((observer, DespawnOnExit(**current_input_mode)));
-        });
-    }
-}
-
-fn on_unit_grabbed_do_select(
-    trigger: On<Pointer<Press>>,
-    mut r_unit_registry: ResMut<UnitRegistry>,
-) {
-    r_unit_registry.selected = Some(trigger.entity);
-}
-
-fn on_unit_dragged_do_move(
-    trigger: On<Pointer<Drag>>,
-    mut q_position: Query<&mut Transform, With<Unit>>,
-    r_zoom_state: Res<ZoomState>,
-) {
-    if let Ok(mut target_transform) = q_position.get_mut(trigger.entity) {
-        let mut delta = trigger.delta;
-        delta.y *= -1.;
-        delta *= r_zoom_state.current_zoom_factor;
-        target_transform.translation += delta.extend(0.);
-    }
-}
-
-fn on_unit_dropped_spawn_arrow(
-    trigger: On<Pointer<DragDrop>>,
-    q_units: Query<Entity, With<Unit>>,
-    mut commands: Commands,
-) {
-    if q_units.contains(trigger.dropped) && q_units.contains(trigger.entity) {
-        spawn_arrow(
-            ArrowSpawnData::Straight {
-                from: AttachableControlPoint::from_entity(trigger.dropped),
-                to: AttachableControlPoint::from_entity(trigger.entity),
-            },
-            &mut commands,
-        );
-    }
-}
-
-fn on_unit_drag_ended_spawn_arrow(
-    trigger: On<Pointer<DragEnd>>,
-    mut er_drag_drop_events: MessageReader<Pointer<DragDrop>>,
-    q_unit_positions: Query<&Transform, With<Unit>>,
-    r_zoom_state: Res<ZoomState>,
-    mut commands: Commands,
-) {
-    if er_drag_drop_events.read().any(|drop_event| {
-        drop_event.dropped == trigger.entity && q_unit_positions.contains(drop_event.entity)
-    }) {
-        return;
-    }
-
-    if let Ok(unit) = q_unit_positions.get(trigger.entity) {
-        let mut drag_distance = trigger.distance;
-        drag_distance.y *= -1.;
-        drag_distance *= r_zoom_state.current_zoom_factor;
-        let unit_position = unit.translation.xy();
-        spawn_arrow(
-            ArrowSpawnData::Straight {
-                from: AttachableControlPoint::from_entity(trigger.entity),
-                to: AttachableControlPoint {
-                    location: ControlPointTarget::Floating(unit_position + drag_distance),
-                },
-            },
-            &mut commands,
-        );
-    }
 }

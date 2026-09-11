@@ -6,7 +6,7 @@ pub mod input;
 pub mod unit;
 
 use crate::{
-    bevy::{arrow::ArrowPlugin, gestures::GesturesPlugin},
+    bevy::{arrow::ArrowPlugin, gestures::GesturesPlugin, input::Selected},
     RENDER_HEIGHT, RENDER_WIDTH,
 };
 use bevy::{asset::AssetMetaCheck, prelude::*, window::WindowResolution};
@@ -15,7 +15,7 @@ use camera::CameraPlugin;
 use field::FieldPlugin;
 use input::InputPlugin;
 use leptos_bevy_canvas::prelude::{BevyQueryDuplex, LeptosBevyApp};
-use unit::{Selected, Unit, UnitPlugin};
+use unit::{Unit, UnitPlugin};
 
 pub struct QueryDuplexes {
     pub selected_unit_qd: BevyQueryDuplex<(Selected, Unit), With<Selected>>,
