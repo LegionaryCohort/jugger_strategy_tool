@@ -170,9 +170,9 @@ impl Unit {
             (Unit::Jugg, false) => LIGHT_GRAY,
             (Unit::Player { team, .. }, selected) => match (team, selected) {
                 (Team::Left, true) => RED,
-                (Team::Left, false) => DARK_RED,
+                (Team::Left, false) => INDIAN_RED,
                 (Team::Right, true) => LIGHT_BLUE,
-                (Team::Right, false) => BLUE,
+                (Team::Right, false) => SKY_BLUE,
             },
         })
     }
