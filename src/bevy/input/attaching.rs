@@ -7,6 +7,16 @@ use bevy::prelude::*;
 #[derive(Component, Clone, Copy, Debug)]
 pub struct Attachable;
 
+pub fn on_dropped_attach_arrow(
+    trigger: On<Pointer<DragDrop>>,
+    q_attachables: Query<Entity, With<Attachable>>,
+    mut commands: Commands,
+) {
+    // TODO: if one or both are attachable arrow control points, connect them
+    // -> this requires being able to obtain the arrow entity from the control point entity
+    // currently this direction is not possible, I need to add the reverse direction
+}
+
 pub fn on_dropped_spawn_arrow(
     trigger: On<Pointer<DragDrop>>,
     q_attachables: Query<Entity, With<Attachable>>,
