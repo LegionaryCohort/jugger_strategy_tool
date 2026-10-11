@@ -75,7 +75,8 @@ pub fn radius_from_meters(radius: f32) -> f32 {
 // ------------------------------
 // z-level stuff
 // ------------------------------
-const Z_LEVEL_FIELD_BACKGROUND: f32 = -3.;
+const Z_LEVEL_FIELD_BACKGROUND: f32 = -5.;
+const Z_LEVEL_ARROW_CONTROL_LINES: f32 = -3.;
 const Z_LEVEL_ARROW_CONTROL_POINTS: f32 = -2.;
 const Z_LEVEL_ARROWS: f32 = -1.;
 const Z_LEVEL_UNITS: f32 = 0.;
