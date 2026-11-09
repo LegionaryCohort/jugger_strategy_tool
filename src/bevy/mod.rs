@@ -1,12 +1,18 @@
 pub mod arrow;
 pub mod camera;
+pub mod common_types;
 pub mod field;
 pub mod gestures;
 pub mod input;
 pub mod unit;
 
 use crate::{
-    bevy::{arrow::ArrowPlugin, gestures::GesturesPlugin, input::dragging::Selected},
+    bevy::{
+        arrow::ArrowPlugin,
+        common_types::{UnitSize, ZLevel},
+        gestures::GesturesPlugin,
+        input::dragging::Selected,
+    },
     RENDER_HEIGHT, RENDER_WIDTH,
 };
 use bevy::{asset::AssetMetaCheck, prelude::*, window::WindowResolution};
@@ -62,8 +68,8 @@ pub fn init_bevy() -> App {
 // ------------------------------
 // coordinate scaling stuff
 // ------------------------------
-pub const CONTROL_POINT_SIZE: f32 = 20.;
-pub const UNIT_SIZE: f32 = 45.;
+pub const CONTROL_POINT_SIZE: UnitSize = UnitSize(20.);
+pub const UNIT_SIZE: UnitSize = UnitSize(45.);
 pub const SIZE_SCALING_FACTOR: f32 = 100.; // pixels per meter
 pub fn from_meters(x: f32, y: f32) -> Vec2 {
     Vec2::new(x, y) * SIZE_SCALING_FACTOR
@@ -75,9 +81,9 @@ pub fn radius_from_meters(radius: f32) -> f32 {
 // ------------------------------
 // z-level stuff
 // ------------------------------
-const Z_LEVEL_FIELD_BACKGROUND: f32 = -5.;
-const Z_LEVEL_ARROW_CONTROL_LINES: f32 = -3.;
-const Z_LEVEL_ARROW_CONTROL_POINTS: f32 = -2.;
-const Z_LEVEL_ARROWS: f32 = -1.;
-const Z_LEVEL_UNITS: f32 = 0.;
-const Z_LEVEL_UNIT_SPRITES: f32 = 1.;
+const Z_LEVEL_FIELD_BACKGROUND: ZLevel = ZLevel(-5.);
+const Z_LEVEL_ARROW_CONTROL_LINES: ZLevel = ZLevel(-3.);
+const Z_LEVEL_ARROW_CONTROL_POINTS: ZLevel = ZLevel(-2.);
+const Z_LEVEL_ARROWS: ZLevel = ZLevel(-1.);
+const Z_LEVEL_UNITS: ZLevel = ZLevel(0.);
+const Z_LEVEL_UNIT_SPRITES: ZLevel = ZLevel(1.);

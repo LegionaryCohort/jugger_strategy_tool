@@ -1,4 +1,5 @@
 use crate::bevy::{
+    common_types::{Position, UnitSize},
     from_meters,
     input::{attaching::Attachable, dragging::Draggable},
     unit::Unit,
@@ -49,7 +50,7 @@ fn sys_update_arrows(
             arrow_entity.despawn_children();
             arrow_entity.insert(
                 ShapeBuilder::new()
-                    .add(&ShapePath::from(&arrow_resolved))
+                    .add(&arrow_resolved.get_arrow_visuals())
                     .stroke((Color::from(BLACK), 10.))
                     .build(),
             );
@@ -60,7 +61,7 @@ fn sys_update_arrows(
                         .add(&control_lines)
                         .stroke((Color::from(WHITE), 5.))
                         .build(),
-                    Transform::from_xyz(0., 0., Z_LEVEL_ARROW_CONTROL_LINES),
+                    Transform::from_xyz(0., 0., Z_LEVEL_ARROW_CONTROL_LINES.0),
                 ));
             }
         } else {
@@ -75,7 +76,7 @@ pub enum ControlPoint {
     Floating,
 }
 impl ControlPoint {
-    fn resolve_size(&self) -> f32 {
+    fn resolve_size(&self) -> UnitSize {
         match self {
             ControlPoint::Attachable(target) => target.resolve_size(),
             ControlPoint::Floating => CONTROL_POINT_SIZE,
@@ -89,7 +90,7 @@ pub enum ControlPointTarget {
     Attached(Entity),
 }
 impl ControlPointTarget {
-    fn resolve_size(&self) -> f32 {
+    fn resolve_size(&self) -> UnitSize {
         match self {
             ControlPointTarget::Floating => CONTROL_POINT_SIZE,
             ControlPointTarget::Attached(_) => UNIT_SIZE,
@@ -103,13 +104,11 @@ impl ControlPointRef {
     fn resolve(
         &self,
         q_control_points: &Query<(&Transform, &ControlPoint)>,
-    ) -> Option<(Vec2, f32)> {
+    ) -> Option<(Position, UnitSize)> {
         q_control_points
             .get(self.0)
             .ok()
-            .map(|(transform, control_point)| {
-                (transform.translation.xy(), control_point.resolve_size())
-            })
+            .map(|(transform, control_point)| (transform.into(), control_point.resolve_size()))
     }
 }
 
@@ -136,9 +135,9 @@ impl Arrow {
             Arrow::Straight { from, to } => {
                 let (from_point, from_radius) = from.resolve(q_control_points)?;
                 let (to_point, to_radius) = to.resolve(q_control_points)?;
-                let direction = (to_point - from_point).normalize();
-                let from = from_point + direction * from_radius;
-                let to = to_point - direction * to_radius;
+                let direction = (to_point.0 - from_point.0).normalize();
+                let from = Position(from_point.0 + direction * from_radius.0);
+                let to = Position(to_point.0 - direction * to_radius.0);
 
                 Some(ArrowResolved::Straight { from, to })
             }
@@ -152,8 +151,11 @@ impl Arrow {
                 let control_to = control_to.resolve(q_control_points)?.0;
                 let (from_point, from_radius) = from.resolve(q_control_points)?;
                 let (to_point, to_radius) = to.resolve(q_control_points)?;
-                let from = from_point + (control_from - from_point).normalize() * from_radius;
-                let to = to_point + (control_to - to_point).normalize() * to_radius;
+                let from = Position(
+                    from_point.0 + (control_from.0 - from_point.0).normalize() * from_radius.0,
+                );
+                let to =
+                    Position(to_point.0 + (control_to.0 - to_point.0).normalize() * to_radius.0);
 
                 Some(ArrowResolved::Bezier {
                     from,
@@ -188,7 +190,7 @@ fn sys_update_control_points(
         };
 
         if let Some(location) = cp_location {
-            cp_transform.translation = location.extend(Z_LEVEL_ARROW_CONTROL_POINTS);
+            cp_transform.translation = location.extend(Z_LEVEL_ARROW_CONTROL_POINTS.0);
         }
         cp_visibility.set_if_neq(if cp_visible {
             Visibility::Inherited
@@ -251,9 +253,9 @@ fn spawn_control_point<C: ControlPointSpawnData>(
     let (control_point, location) = spawn_data.to_control_point();
     let mut control_point_entity = commands.spawn((
         control_point,
-        Transform::from_translation(location.extend(Z_LEVEL_ARROW_CONTROL_POINTS)),
+        Transform::from_translation(location.extend(Z_LEVEL_ARROW_CONTROL_POINTS.0)),
         ShapeBuilder::with(&shapes::Circle {
-            radius: CONTROL_POINT_SIZE,
+            radius: CONTROL_POINT_SIZE.0,
             center: Vec2::ZERO,
         })
         .fill(Color::from(DEEP_PINK))
@@ -311,39 +313,47 @@ pub fn spawn_arrow(spawn_data: ArrowSpawnData, commands: &mut Commands) {
 #[derive(Component, Clone, Copy, Debug)]
 pub enum ArrowResolved {
     Straight {
-        from: Vec2,
+        from: Position,
+        to: Position,
+    },
+    Bezier {
+        from: Position,
+        to: Position,
+        control_from: Position,
+        control_to: Position,
+    },
+}
+enum ArrowLocalizedDrawingData {
+    Straight {
         to: Vec2,
     },
     Bezier {
-        from: Vec2,
         to: Vec2,
         control_from: Vec2,
         control_to: Vec2,
     },
 }
 impl ArrowResolved {
-    fn localized(&self) -> ArrowResolved {
+    fn localized(&self) -> ArrowLocalizedDrawingData {
         match self {
-            ArrowResolved::Straight { from, to } => ArrowResolved::Straight {
-                from: Vec2::ZERO,
-                to: to - from,
-            },
+            ArrowResolved::Straight { from, to } => {
+                ArrowLocalizedDrawingData::Straight { to: to.0 - from.0 }
+            }
             ArrowResolved::Bezier {
                 from,
                 to,
                 control_from,
                 control_to,
-            } => ArrowResolved::Bezier {
-                from: Vec2::ZERO,
-                to: to - from,
-                control_from: control_from - from,
-                control_to: control_to - from,
+            } => ArrowLocalizedDrawingData::Bezier {
+                to: to.0 - from.0,
+                control_from: control_from.0 - from.0,
+                control_to: control_to.0 - from.0,
             },
         }
     }
 
     fn get_transform(&self) -> Transform {
-        let from = match self {
+        match self {
             ArrowResolved::Straight { from, to: _ } => from,
             ArrowResolved::Bezier {
                 from,
@@ -351,22 +361,46 @@ impl ArrowResolved {
                 control_from: _,
                 control_to: _,
             } => from,
-        };
+        }
+        .into_transform(Z_LEVEL_ARROWS)
+    }
 
-        Transform::from_xyz(from.x, from.y, Z_LEVEL_ARROWS)
+    fn get_arrow_visuals(&self) -> ShapePath {
+        let arrow = self.localized();
+        let mut arrow_builder = ShapePath::new();
+        arrow_builder = match arrow {
+            ArrowLocalizedDrawingData::Straight { to } => {
+                arrow_builder.move_to(Vec2::ZERO).line_to(to)
+            }
+            ArrowLocalizedDrawingData::Bezier {
+                to,
+                control_from,
+                control_to,
+            } => arrow_builder
+                .move_to(Vec2::ZERO)
+                .cubic_bezier_to(control_from, control_to, to),
+        };
+        if let Some(arrow_head) = Arrowhead::calculate(&arrow) {
+            arrow_builder = arrow_builder
+                .move_to(arrow_head.point.0)
+                .line_to(arrow_head.right.0)
+                .move_to(arrow_head.point.0)
+                .line_to(arrow_head.left.0);
+        }
+
+        arrow_builder
     }
 
     fn control_lines(&self) -> Option<ShapePath> {
         match self.localized() {
-            ArrowResolved::Straight { from: _, to: _ } => None,
-            ArrowResolved::Bezier {
-                from,
+            ArrowLocalizedDrawingData::Straight { to: _ } => None,
+            ArrowLocalizedDrawingData::Bezier {
                 to,
                 control_from,
                 control_to,
             } => Some(
                 ShapePath::new()
-                    .move_to(from)
+                    .move_to(Vec2::ZERO)
                     .line_to(control_from)
                     .move_to(to)
                     .line_to(control_to),
@@ -374,46 +408,19 @@ impl ArrowResolved {
         }
     }
 }
-impl From<&ArrowResolved> for ShapePath {
-    fn from(arrow: &ArrowResolved) -> Self {
-        let arrow = arrow.localized();
-        let mut arrow_builder = ShapePath::new();
-        arrow_builder = match arrow {
-            ArrowResolved::Straight { from, to } => arrow_builder.move_to(from).line_to(to),
-            ArrowResolved::Bezier {
-                from,
-                to,
-                control_from,
-                control_to,
-            } => arrow_builder
-                .move_to(from)
-                .cubic_bezier_to(control_from, control_to, to),
-        };
-        if let Some(arrow_head) = Arrowhead::calculate(&arrow) {
-            arrow_builder = arrow_builder
-                .move_to(arrow_head.point)
-                .line_to(arrow_head.right)
-                .move_to(arrow_head.point)
-                .line_to(arrow_head.left);
-        }
-
-        arrow_builder
-    }
-}
 
 struct Arrowhead {
-    left: Vec2,
-    right: Vec2,
-    point: Vec2,
+    left: Position,
+    right: Position,
+    point: Position,
 }
 const ROTATE_PLUS_45: Vec2 = Vec2::new(f32::consts::FRAC_1_SQRT_2, f32::consts::FRAC_1_SQRT_2);
 const ROTATE_MINUS_45: Vec2 = Vec2::new(f32::consts::FRAC_1_SQRT_2, -f32::consts::FRAC_1_SQRT_2);
 impl Arrowhead {
-    fn calculate(arrow: &ArrowResolved) -> Option<Self> {
+    fn calculate(arrow: &ArrowLocalizedDrawingData) -> Option<Self> {
         let (from, to) = match arrow {
-            ArrowResolved::Straight { from, to } => (*from, *to),
-            ArrowResolved::Bezier {
-                from: _,
+            ArrowLocalizedDrawingData::Straight { to } => (Vec2::ZERO, *to),
+            ArrowLocalizedDrawingData::Bezier {
                 to,
                 control_from: _,
                 control_to,
@@ -421,13 +428,11 @@ impl Arrowhead {
         };
 
         (from - to).try_normalize().map(|direction| {
-            let right = to + ROTATE_PLUS_45.rotate(direction) * SIZE_SCALING_FACTOR * 0.5;
-            let left = to + ROTATE_MINUS_45.rotate(direction) * SIZE_SCALING_FACTOR * 0.5;
-            Arrowhead {
-                right,
-                left,
-                point: to,
-            }
+            let right = Position(to + ROTATE_PLUS_45.rotate(direction) * SIZE_SCALING_FACTOR * 0.5);
+            let left = Position(to + ROTATE_MINUS_45.rotate(direction) * SIZE_SCALING_FACTOR * 0.5);
+            let point = Position(to);
+
+            Arrowhead { right, left, point }
         })
     }
 }

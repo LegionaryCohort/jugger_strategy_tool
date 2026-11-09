@@ -71,7 +71,7 @@ fn setup_field(mut commands: Commands) {
     commands
         .spawn((
             field_shape,
-            Transform::from_xyz(0., 0., Z_LEVEL_FIELD_BACKGROUND),
+            Transform::from_xyz(0., 0., Z_LEVEL_FIELD_BACKGROUND.0),
         ))
         .with_child((center_line, Transform::from_xyz(0., 0., 1.)));
 }

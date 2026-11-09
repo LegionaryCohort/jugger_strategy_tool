@@ -1,5 +1,4 @@
 use crate::bevy::{
-    arrow::AttachableControlPoint,
     from_meters,
     input::{
         attaching::Attachable,
@@ -136,19 +135,19 @@ fn spawn_unit(spawn_data: SpawnData, commands: &mut Commands, r_asset_server: &R
     commands
         .spawn((
             ShapeBuilder::with(&shapes::Circle {
-                radius: UNIT_SIZE,
+                radius: UNIT_SIZE.0,
                 center: Vec2::ZERO,
             })
             .fill(unit_component.color(false))
             .build(),
-            Transform::from_translation(position.extend(Z_LEVEL_UNITS)),
+            Transform::from_translation(position.extend(Z_LEVEL_UNITS.0)),
             Draggable,
             Attachable,
             unit_component,
         ))
         .with_child((
             sprite,
-            Transform::from_xyz(0., 0., Z_LEVEL_UNIT_SPRITES),
+            Transform::from_xyz(0., 0., Z_LEVEL_UNIT_SPRITES.0),
             Pickable::IGNORE,
         ));
 }
