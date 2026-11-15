@@ -1,4 +1,7 @@
-use crate::bevy::{from_meters, radius_from_meters, Z_LEVEL_FIELD_BACKGROUND};
+use crate::bevy::{
+    common_types::{radius_from_meters, FromMeters},
+    Z_LEVEL_FIELD_BACKGROUND,
+};
 use bevy::{app::Plugin, color::palettes::css::*, ecs::system::Commands, prelude::*};
 use bevy_prototype_lyon::prelude::*;
 
@@ -12,14 +15,14 @@ impl Plugin for FieldPlugin {
 fn setup_field(mut commands: Commands) {
     let field_border = shapes::Polygon {
         points: [
-            from_meters(-15., -10.),
-            from_meters(-20., -5.),
-            from_meters(-20., 5.),
-            from_meters(-15., 10.),
-            from_meters(15., 10.),
-            from_meters(20., 5.),
-            from_meters(20., -5.),
-            from_meters(15., -10.),
+            Vec2::from_meters(-15., -10.),
+            Vec2::from_meters(-20., -5.),
+            Vec2::from_meters(-20., 5.),
+            Vec2::from_meters(-15., 10.),
+            Vec2::from_meters(15., 10.),
+            Vec2::from_meters(20., 5.),
+            Vec2::from_meters(20., -5.),
+            Vec2::from_meters(15., -10.),
         ]
         .into_iter()
         .collect(),
@@ -33,11 +36,11 @@ fn setup_field(mut commands: Commands) {
 
     let left_base = shapes::Circle {
         radius: radius_from_meters(0.2),
-        center: from_meters(-18., 0.),
+        center: Vec2::from_meters(-18., 0.),
     };
     let right_base = shapes::Circle {
         radius: radius_from_meters(0.2),
-        center: from_meters(18., 0.),
+        center: Vec2::from_meters(18., 0.),
     };
 
     let field_shape = ShapeBuilder::new()
@@ -53,13 +56,13 @@ fn setup_field(mut commands: Commands) {
     let mut center_line_path = ShapePath::new();
     for marker in (-10..=-2).step_by(2) {
         center_line_path = center_line_path
-            .move_to(from_meters(0., marker as f32))
-            .line_to(from_meters(0., (marker + 1) as f32));
+            .move_to(Vec2::from_meters(0., marker as f32))
+            .line_to(Vec2::from_meters(0., (marker + 1) as f32));
     }
     for marker in (1..=9).step_by(2) {
         center_line_path = center_line_path
-            .move_to(from_meters(0., marker as f32))
-            .line_to(from_meters(0., (marker + 1) as f32));
+            .move_to(Vec2::from_meters(0., marker as f32))
+            .line_to(Vec2::from_meters(0., (marker + 1) as f32));
     }
     let center_line = ShapeBuilder::with(&center_line_path)
         .stroke(Stroke {

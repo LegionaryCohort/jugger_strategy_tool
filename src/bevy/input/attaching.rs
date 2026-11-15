@@ -1,6 +1,7 @@
 use crate::bevy::{
     arrow::{spawn_arrow, ArrowSpawnData, AttachableControlPoint, ControlPointTarget},
     camera::ZoomState,
+    common_types::Position,
 };
 use bevy::prelude::*;
 
@@ -55,7 +56,7 @@ pub fn on_drag_ended_spawn_arrow(
             ArrowSpawnData::Straight {
                 from: AttachableControlPoint::from_entity(trigger.entity),
                 to: AttachableControlPoint {
-                    location: unit_position + drag_distance,
+                    location: Position(unit_position + drag_distance),
                     target: ControlPointTarget::Floating,
                 },
             },

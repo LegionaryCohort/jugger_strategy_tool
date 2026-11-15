@@ -1,5 +1,5 @@
 use crate::bevy::{
-    from_meters,
+    common_types::FromMeters,
     input::{
         attaching::Attachable,
         dragging::{Draggable, Selected},
@@ -207,16 +207,16 @@ pub enum Team {
 impl Team {
     fn initial_position(&self, start_position: StartPosition) -> Vec2 {
         match (self, start_position) {
-            (Team::Left, StartPosition::One) => from_meters(-21., 4.),
-            (Team::Left, StartPosition::Two) => from_meters(-21., 2.),
-            (Team::Left, StartPosition::Three) => from_meters(-21., -2.),
-            (Team::Left, StartPosition::Four) => from_meters(-21., -4.),
-            (Team::Left, StartPosition::Runner) => from_meters(-21., 0.),
-            (Team::Right, StartPosition::One) => from_meters(21., -4.),
-            (Team::Right, StartPosition::Two) => from_meters(21., -2.),
-            (Team::Right, StartPosition::Three) => from_meters(21., 2.),
-            (Team::Right, StartPosition::Four) => from_meters(21., 4.),
-            (Team::Right, StartPosition::Runner) => from_meters(21., 0.),
+            (Team::Left, StartPosition::One) => Vec2::from_meters(-21., 4.),
+            (Team::Left, StartPosition::Two) => Vec2::from_meters(-21., 2.),
+            (Team::Left, StartPosition::Three) => Vec2::from_meters(-21., -2.),
+            (Team::Left, StartPosition::Four) => Vec2::from_meters(-21., -4.),
+            (Team::Left, StartPosition::Runner) => Vec2::from_meters(-21., 0.),
+            (Team::Right, StartPosition::One) => Vec2::from_meters(21., -4.),
+            (Team::Right, StartPosition::Two) => Vec2::from_meters(21., -2.),
+            (Team::Right, StartPosition::Three) => Vec2::from_meters(21., 2.),
+            (Team::Right, StartPosition::Four) => Vec2::from_meters(21., 4.),
+            (Team::Right, StartPosition::Runner) => Vec2::from_meters(21., 0.),
         }
     }
 }

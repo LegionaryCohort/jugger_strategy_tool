@@ -22,3 +22,21 @@ impl From<&Transform> for Position {
         Self(transform.translation.xy())
     }
 }
+
+pub const SIZE_SCALING_FACTOR: f32 = 100.; // pixels per meter
+pub fn radius_from_meters(radius: f32) -> f32 {
+    radius * SIZE_SCALING_FACTOR
+}
+pub trait FromMeters {
+    fn from_meters(x: f32, y: f32) -> Self;
+}
+impl FromMeters for Vec2 {
+    fn from_meters(x: f32, y: f32) -> Self {
+        Vec2::new(x, y) * SIZE_SCALING_FACTOR
+    }
+}
+impl FromMeters for Position {
+    fn from_meters(x: f32, y: f32) -> Self {
+        Self(Vec2::from_meters(x, y))
+    }
+}

@@ -1,10 +1,8 @@
 use crate::bevy::{
-    common_types::{Position, UnitSize},
-    from_meters,
+    common_types::{FromMeters, Position, UnitSize, SIZE_SCALING_FACTOR},
     input::{attaching::Attachable, dragging::Draggable},
     unit::Unit,
-    CONTROL_POINT_SIZE, SIZE_SCALING_FACTOR, Z_LEVEL_ARROWS, Z_LEVEL_ARROW_CONTROL_LINES,
-    Z_LEVEL_ARROW_CONTROL_POINTS,
+    CONTROL_POINT_SIZE, Z_LEVEL_ARROWS, Z_LEVEL_ARROW_CONTROL_LINES, Z_LEVEL_ARROW_CONTROL_POINTS,
 };
 use bevy::{app::Plugin, color::palettes::css::*, ecs::system::Commands, prelude::*};
 use bevy_prototype_lyon::prelude::*;
@@ -208,47 +206,49 @@ fn sys_update_control_points(
 }
 
 trait ControlPointSpawnData {
-    fn to_control_point(&self) -> (ControlPoint, Vec2);
+    fn to_control_point(&self) -> (ControlPoint, Position);
 }
 
 #[derive(Clone, Copy, Debug)]
 pub struct AttachableControlPoint {
     pub target: ControlPointTarget,
-    pub location: Vec2,
+    pub location: Position,
 }
 impl AttachableControlPoint {
-    pub fn from_meters(x: f32, y: f32) -> Self {
-        Self {
-            target: ControlPointTarget::Floating,
-            location: from_meters(x, y),
-        }
-    }
     pub fn from_entity(entity: Entity) -> Self {
         Self {
             target: ControlPointTarget::Attached(entity),
-            location: Vec2::ZERO,
+            location: Position(Vec2::ZERO),
+        }
+    }
+}
+impl FromMeters for AttachableControlPoint {
+    fn from_meters(x: f32, y: f32) -> Self {
+        Self {
+            target: ControlPointTarget::Floating,
+            location: Position::from_meters(x, y),
         }
     }
 }
 impl ControlPointSpawnData for AttachableControlPoint {
-    fn to_control_point(&self) -> (ControlPoint, Vec2) {
+    fn to_control_point(&self) -> (ControlPoint, Position) {
         (ControlPoint::Attachable(self.target), self.location)
     }
 }
 
 #[derive(Clone, Copy, Debug)]
 pub struct FloatingControlPoint {
-    pub location: Vec2,
+    pub location: Position,
 }
-impl FloatingControlPoint {
+impl FromMeters for FloatingControlPoint {
     fn from_meters(x: f32, y: f32) -> Self {
         Self {
-            location: from_meters(x, y),
+            location: Position::from_meters(x, y),
         }
     }
 }
 impl ControlPointSpawnData for FloatingControlPoint {
-    fn to_control_point(&self) -> (ControlPoint, Vec2) {
+    fn to_control_point(&self) -> (ControlPoint, Position) {
         (ControlPoint::Floating, self.location)
     }
 }
@@ -257,11 +257,11 @@ fn spawn_control_point<C: ControlPointSpawnData>(
     spawn_data: C,
     commands: &mut Commands,
 ) -> ControlPointRef {
-    let (control_point, location) = spawn_data.to_control_point();
+    let (control_point, position) = spawn_data.to_control_point();
     let mut control_point_entity = commands.spawn((
         control_point,
         CONTROL_POINT_SIZE,
-        Transform::from_translation(location.extend(Z_LEVEL_ARROW_CONTROL_POINTS.0)),
+        position.into_transform(Z_LEVEL_ARROW_CONTROL_POINTS),
         ShapeBuilder::with(&shapes::Circle {
             radius: CONTROL_POINT_SIZE.0,
             center: Vec2::ZERO,
