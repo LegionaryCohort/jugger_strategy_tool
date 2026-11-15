@@ -1,9 +1,10 @@
 use bevy::{
+    ecs::component::Component,
     math::{Vec2, Vec3Swizzles},
     transform::components::Transform,
 };
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Component, Copy, Clone, Debug)]
 pub struct UnitSize(pub f32);
 
 #[derive(Copy, Clone, Debug)]

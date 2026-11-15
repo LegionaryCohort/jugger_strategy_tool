@@ -3,8 +3,8 @@ use crate::bevy::{
     from_meters,
     input::{attaching::Attachable, dragging::Draggable},
     unit::Unit,
-    CONTROL_POINT_SIZE, SIZE_SCALING_FACTOR, UNIT_SIZE, Z_LEVEL_ARROWS,
-    Z_LEVEL_ARROW_CONTROL_LINES, Z_LEVEL_ARROW_CONTROL_POINTS,
+    CONTROL_POINT_SIZE, SIZE_SCALING_FACTOR, Z_LEVEL_ARROWS, Z_LEVEL_ARROW_CONTROL_LINES,
+    Z_LEVEL_ARROW_CONTROL_POINTS,
 };
 use bevy::{app::Plugin, color::palettes::css::*, ecs::system::Commands, prelude::*};
 use bevy_prototype_lyon::prelude::*;
@@ -43,9 +43,10 @@ fn sys_update_arrows(
     mut commands: Commands,
     mut q_arrows: Query<(Entity, &Arrow, &mut Transform), Without<ControlPoint>>,
     q_control_points: Query<(&Transform, &ControlPoint)>,
+    q_unit_sizes: Query<&UnitSize>,
 ) {
     for (entity, arrow, mut transform) in q_arrows.iter_mut() {
-        if let Some(arrow_resolved) = arrow.resolve(&q_control_points) {
+        if let Some(arrow_resolved) = arrow.resolve(&q_control_points, &q_unit_sizes) {
             let mut arrow_entity = commands.get_entity(entity).unwrap();
             arrow_entity.despawn_children();
             arrow_entity.insert(
@@ -76,9 +77,9 @@ pub enum ControlPoint {
     Floating,
 }
 impl ControlPoint {
-    fn resolve_size(&self) -> UnitSize {
+    fn resolve_size(&self, q_unit_sizes: &Query<&UnitSize>) -> UnitSize {
         match self {
-            ControlPoint::Attachable(target) => target.resolve_size(),
+            ControlPoint::Attachable(target) => target.resolve_size(q_unit_sizes),
             ControlPoint::Floating => CONTROL_POINT_SIZE,
         }
     }
@@ -90,10 +91,12 @@ pub enum ControlPointTarget {
     Attached(Entity),
 }
 impl ControlPointTarget {
-    fn resolve_size(&self) -> UnitSize {
+    fn resolve_size(&self, q_unit_sizes: &Query<&UnitSize>) -> UnitSize {
         match self {
             ControlPointTarget::Floating => CONTROL_POINT_SIZE,
-            ControlPointTarget::Attached(_) => UNIT_SIZE,
+            ControlPointTarget::Attached(entity) => *q_unit_sizes
+                .get(*entity)
+                .expect("Attachment target must have a UnitSize"),
         }
     }
 }
@@ -104,11 +107,14 @@ impl ControlPointRef {
     fn resolve(
         &self,
         q_control_points: &Query<(&Transform, &ControlPoint)>,
+        q_unit_sizes: &Query<&UnitSize>,
     ) -> Option<(Position, UnitSize)> {
         q_control_points
             .get(self.0)
             .ok()
-            .map(|(transform, control_point)| (transform.into(), control_point.resolve_size()))
+            .map(|(transform, control_point)| {
+                (transform.into(), control_point.resolve_size(q_unit_sizes))
+            })
     }
 }
 
@@ -130,11 +136,12 @@ impl Arrow {
     fn resolve(
         &self,
         q_control_points: &Query<(&Transform, &ControlPoint)>,
+        q_unit_sizes: &Query<&UnitSize>,
     ) -> Option<ArrowResolved> {
         match self {
             Arrow::Straight { from, to } => {
-                let (from_point, from_radius) = from.resolve(q_control_points)?;
-                let (to_point, to_radius) = to.resolve(q_control_points)?;
+                let (from_point, from_radius) = from.resolve(q_control_points, q_unit_sizes)?;
+                let (to_point, to_radius) = to.resolve(q_control_points, q_unit_sizes)?;
                 let direction = (to_point.0 - from_point.0).normalize();
                 let from = Position(from_point.0 + direction * from_radius.0);
                 let to = Position(to_point.0 - direction * to_radius.0);
@@ -147,10 +154,10 @@ impl Arrow {
                 control_from,
                 control_to,
             } => {
-                let control_from = control_from.resolve(q_control_points)?.0;
-                let control_to = control_to.resolve(q_control_points)?.0;
-                let (from_point, from_radius) = from.resolve(q_control_points)?;
-                let (to_point, to_radius) = to.resolve(q_control_points)?;
+                let control_from = control_from.resolve(q_control_points, q_unit_sizes)?.0;
+                let control_to = control_to.resolve(q_control_points, q_unit_sizes)?.0;
+                let (from_point, from_radius) = from.resolve(q_control_points, q_unit_sizes)?;
+                let (to_point, to_radius) = to.resolve(q_control_points, q_unit_sizes)?;
                 let from = Position(
                     from_point.0 + (control_from.0 - from_point.0).normalize() * from_radius.0,
                 );
@@ -253,6 +260,7 @@ fn spawn_control_point<C: ControlPointSpawnData>(
     let (control_point, location) = spawn_data.to_control_point();
     let mut control_point_entity = commands.spawn((
         control_point,
+        CONTROL_POINT_SIZE,
         Transform::from_translation(location.extend(Z_LEVEL_ARROW_CONTROL_POINTS.0)),
         ShapeBuilder::with(&shapes::Circle {
             radius: CONTROL_POINT_SIZE.0,

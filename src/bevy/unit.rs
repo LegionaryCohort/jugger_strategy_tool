@@ -144,6 +144,7 @@ fn spawn_unit(spawn_data: SpawnData, commands: &mut Commands, r_asset_server: &R
             Draggable,
             Attachable,
             unit_component,
+            UNIT_SIZE,
         ))
         .with_child((
             sprite,
