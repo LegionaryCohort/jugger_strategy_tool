@@ -40,7 +40,7 @@ fn sys_spawn_test_arrows(mut commands: Commands) {
 fn sys_update_arrows(
     mut commands: Commands,
     mut q_arrows: Query<(Entity, &Arrow, &mut Transform), Without<ControlPoint>>,
-    q_control_points: Query<(&Transform, &ControlPoint)>,
+    q_control_points: Query<(Entity, &Transform, &ControlPoint)>,
     q_unit_sizes: Query<&UnitSize>,
 ) {
     for (entity, arrow, mut transform) in q_arrows.iter_mut() {
@@ -75,10 +75,12 @@ pub enum ControlPoint {
     Floating,
 }
 impl ControlPoint {
-    fn resolve_size(&self, q_unit_sizes: &Query<&UnitSize>) -> UnitSize {
+    fn resolve_size(&self, entity_self: Entity, q_unit_sizes: &Query<&UnitSize>) -> UnitSize {
         match self {
-            ControlPoint::Attachable(target) => target.resolve_size(q_unit_sizes),
-            ControlPoint::Floating => CONTROL_POINT_SIZE,
+            ControlPoint::Attachable(target) => target.resolve_size(entity_self, q_unit_sizes),
+            ControlPoint::Floating => *q_unit_sizes
+                .get(entity_self)
+                .expect("Control points must have a UnitSize"),
         }
     }
 }
@@ -89,9 +91,11 @@ pub enum ControlPointTarget {
     Attached(Entity),
 }
 impl ControlPointTarget {
-    fn resolve_size(&self, q_unit_sizes: &Query<&UnitSize>) -> UnitSize {
+    fn resolve_size(&self, entity_self: Entity, q_unit_sizes: &Query<&UnitSize>) -> UnitSize {
         match self {
-            ControlPointTarget::Floating => CONTROL_POINT_SIZE,
+            ControlPointTarget::Floating => *q_unit_sizes
+                .get(entity_self)
+                .expect("Control points must have a UnitSize"),
             ControlPointTarget::Attached(entity) => *q_unit_sizes
                 .get(*entity)
                 .expect("Attachment target must have a UnitSize"),
@@ -104,14 +108,17 @@ struct ControlPointRef(Entity);
 impl ControlPointRef {
     fn resolve(
         &self,
-        q_control_points: &Query<(&Transform, &ControlPoint)>,
+        q_control_points: &Query<(Entity, &Transform, &ControlPoint)>,
         q_unit_sizes: &Query<&UnitSize>,
     ) -> Option<(Position, UnitSize)> {
         q_control_points
             .get(self.0)
-            .ok()
-            .map(|(transform, control_point)| {
-                (transform.into(), control_point.resolve_size(q_unit_sizes))
+            .ok() // TODO this should be stricter and panic on broken references
+            .map(|(entity_self, transform, control_point)| {
+                (
+                    transform.into(),
+                    control_point.resolve_size(entity_self, q_unit_sizes),
+                )
             })
     }
 }
@@ -133,7 +140,7 @@ enum Arrow {
 impl Arrow {
     fn resolve(
         &self,
-        q_control_points: &Query<(&Transform, &ControlPoint)>,
+        q_control_points: &Query<(Entity, &Transform, &ControlPoint)>,
         q_unit_sizes: &Query<&UnitSize>,
     ) -> Option<ArrowResolved> {
         match self {
