@@ -11,7 +11,7 @@ use crate::{
         arrow::ArrowPlugin,
         common_types::{UnitSize, ZLevel},
         gestures::GesturesPlugin,
-        input::dragging::Selected,
+        input::selecting::Selected,
     },
     RENDER_HEIGHT, RENDER_WIDTH,
 };

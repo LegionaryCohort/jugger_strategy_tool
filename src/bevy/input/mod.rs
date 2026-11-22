@@ -1,19 +1,21 @@
 pub mod attaching;
 pub mod dragging;
 mod mode;
+pub mod selecting;
 
 use attaching::*;
 use bevy::prelude::*;
 use dragging::*;
 use leafwing_input_manager::prelude::*;
 use mode::*;
+use selecting::{on_pressed_do_select, SelectionInputPlugin};
 
 pub struct InputPlugin;
 impl Plugin for InputPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(InputManagerPlugin::<GlobalAction>::default())
+            .add_plugins(SelectionInputPlugin)
             .init_resource::<ActionState<GlobalAction>>()
-            .init_resource::<SelectionRegistry>()
             .insert_resource(GlobalAction::input_map())
             .init_state::<InputMode>()
             // .enable_state_scoped_entities::<InputMode>()
@@ -22,10 +24,6 @@ impl Plugin for InputPlugin {
             .add_systems(
                 Update,
                 sys_on_input_mode_change.run_if(state_changed::<InputMode>),
-            )
-            .add_systems(
-                Update,
-                sys_sync_selection_state.run_if(resource_changed::<SelectionRegistry>),
             );
     }
 }
@@ -66,13 +64,13 @@ fn sys_on_input_mode_change(
         InputMode::View => (None, None),
         InputMode::Units => (
             Some(vec![
-                Observer::new(on_grabbed_do_select),
+                Observer::new(on_pressed_do_select),
                 Observer::new(on_dragged_do_move),
             ]),
             None,
         ),
         InputMode::Arrows => (
-            Some(vec![Observer::new(on_grabbed_do_select)]),
+            Some(vec![Observer::new(on_pressed_do_select)]),
             Some(vec![
                 Observer::new(on_dropped_spawn_arrow),
                 Observer::new(on_drag_ended_spawn_arrow),

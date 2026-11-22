@@ -2,7 +2,8 @@ use crate::bevy::{
     common_types::FromMeters,
     input::{
         attaching::Attachable,
-        dragging::{Draggable, Selected},
+        dragging::Draggable,
+        selecting::{Selectable, Selected},
     },
     UNIT_SIZE, Z_LEVEL_UNITS, Z_LEVEL_UNIT_SPRITES,
 };
@@ -141,6 +142,7 @@ fn spawn_unit(spawn_data: SpawnData, commands: &mut Commands, r_asset_server: &R
             .fill(unit_component.color(false))
             .build(),
             Transform::from_translation(position.extend(Z_LEVEL_UNITS.0)),
+            Selectable,
             Draggable,
             Attachable,
             unit_component,
